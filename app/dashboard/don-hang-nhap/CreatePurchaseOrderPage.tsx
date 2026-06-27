@@ -486,8 +486,8 @@ export default function CreatePurchaseOrderPage({
   const colRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    branchesApi.getAll(true).then(d => setBranches(Array.isArray(d) ? d : (d.data ?? d.items ?? []))).catch(() => {});
-    employeesApi.getAll({ limit: '100' }).then(d => setEmployees(d.items ?? d.data ?? [])).catch(() => {});
+    branchesApi.getAll(true).then((d: any) => setBranches(Array.isArray(d) ? d : (d.data ?? d.items ?? []))).catch(() => {});
+    employeesApi.getAll({ limit: '100' }).then((d: any) => setEmployees(d.items ?? d.data ?? [])).catch(() => {});
   }, []);
 
   useEffect(() => {
