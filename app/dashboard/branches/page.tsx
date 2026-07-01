@@ -40,11 +40,13 @@ export default function BranchesPage() {
   const [formError, setFormError] = useState('');
 
   const [confirmTarget, setConfirmTarget] = useState<Branch | null>(null);
+  const [deactivating, setDeactivating] = useState(false);
 
   const [toast, setToast] = useState('');
   const [toastType, setToastType] = useState<ToastType>('success');
 
-  const [employees, setEmployees] = useState<{ id: number; fullName: string }[]>([]);
+  type EmployeeOption = { id: number; fullName: string };
+  const [employees, setEmployees] = useState<EmployeeOption[]>([]);
 
   const showToast = (msg: string, type: ToastType = 'success') => {
     setToast(msg);
@@ -69,7 +71,8 @@ export default function BranchesPage() {
 
   useEffect(() => {
     employeesApi.getAll({ isActive: 'true', limit: '200' })
-      .then((res: any) => setEmployees((res.items ?? res).map((e: any) => ({ id: e.id, fullName: e.fullName }))))
+      .then((res: { items?: EmployeeOption[] }) =>
+        setEmployees((res.items ?? []).map(e => ({ id: e.id, fullName: e.fullName }))))
       .catch(() => {});
   }, []);
 
@@ -142,7 +145,8 @@ export default function BranchesPage() {
   }
 
   async function confirmDeactivate() {
-    if (!confirmTarget) return;
+    if (!confirmTarget || deactivating) return;
+    setDeactivating(true);
     try {
       await branchesApi.remove(confirmTarget.id);
       showToast(`Đã tắt chi nhánh "${confirmTarget.name}"`);
@@ -150,6 +154,7 @@ export default function BranchesPage() {
     } catch (e: unknown) {
       showToast(e instanceof Error ? e.message : 'Lỗi', 'error');
     } finally {
+      setDeactivating(false);
       setConfirmTarget(null);
     }
   }
@@ -377,6 +382,10 @@ export default function BranchesPage() {
                   <select value={form.nguoiPhuTrach ?? ''} onChange={e => setForm(f => ({ ...f, nguoiPhuTrach: e.target.value }))}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <option value="">— Chọn nhân viên —</option>
+                    {/* Nhân viên đã nghỉ: giữ option để không mất dữ liệu khi mở edit */}
+                    {editingId !== null && form.nguoiPhuTrach && !employees.some(e => e.fullName === form.nguoiPhuTrach) && (
+                      <option value={form.nguoiPhuTrach}>{form.nguoiPhuTrach} (đã nghỉ)</option>
+                    )}
                     {employees.map(emp => (
                       <option key={emp.id} value={emp.fullName}>{emp.fullName}</option>
                     ))}
@@ -501,9 +510,9 @@ export default function BranchesPage() {
                 className="flex-1 px-4 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors font-medium">
                 Huỷ
               </button>
-              <button onClick={confirmDeactivate}
-                className="flex-1 px-4 py-2 text-sm text-white bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors font-medium">
-                Tắt chi nhánh
+              <button onClick={confirmDeactivate} disabled={deactivating}
+                className="flex-1 px-4 py-2 text-sm text-white bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors font-medium disabled:opacity-50">
+                {deactivating ? 'Đang xử lý...' : 'Tắt chi nhánh'}
               </button>
             </div>
           </div>
