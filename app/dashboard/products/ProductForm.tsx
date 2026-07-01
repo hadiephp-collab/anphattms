@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { productsApi } from '@/lib/products';
 import { productCategoriesApi } from '@/lib/product-categories';
+import { unitsApi } from '@/lib/units';
 import { getToken } from '@/lib/auth';
 
 interface ProductVariant {
@@ -93,6 +94,7 @@ export default function ProductForm({ initialData, mode }: { initialData?: Produ
   const [isSaleable, setIsSaleable] = useState(initialData?.isSaleable !== false);
   const [isActive, setIsActive] = useState(initialData?.isActive !== false);
   const [tagsInput, setTagsInput] = useState((initialData?.tags || []).join(', '));
+  const [activeUnits, setActiveUnits] = useState<{ id: number; name: string; code: string }[]>([]);
 
   // Variants
   const [hasVariants, setHasVariants] = useState(initialData?.hasVariants || false);
@@ -115,6 +117,7 @@ export default function ProductForm({ initialData, mode }: { initialData?: Produ
 
   useEffect(() => {
     productCategoriesApi.getNames().then(setCategories).catch(() => {});
+    unitsApi.getActive().then(setActiveUnits).catch(() => {});
   }, []);
 
   // Pre-populate attrDefs from existing variants if editing
@@ -377,7 +380,15 @@ export default function ProductForm({ initialData, mode }: { initialData?: Produ
                   </div>
                   <div>
                     <label className={labelCls}>Đơn vị tính (ĐVT)</label>
-                    <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="cái, chiếc, hộp, kg..." className={inputCls} />
+                    <select value={unit} onChange={(e) => setUnit(e.target.value)} className={inputCls}>
+                      <option value="">-- Chọn đơn vị --</option>
+                      {activeUnits.map((u) => (
+                        <option key={u.id} value={u.name}>{u.name} ({u.code})</option>
+                      ))}
+                      {unit && !activeUnits.some((u) => u.name === unit) && (
+                        <option value={unit}>{unit} (cũ)</option>
+                      )}
+                    </select>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
