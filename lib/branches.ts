@@ -9,7 +9,7 @@ async function authFetch(path: string, options: RequestInit = {}) {
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...options.headers },
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.message || 'Lỗi server');
+  if (!res.ok) throw new Error(Array.isArray(data.message) ? data.message.join(', ') : (data.message || 'Lỗi server'));
   return data;
 }
 

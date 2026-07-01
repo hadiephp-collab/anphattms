@@ -135,7 +135,7 @@ export default function BranchesPage() {
   async function confirmDeactivate() {
     if (!confirmTarget) return;
     try {
-      await branchesApi.update(confirmTarget.id, { isActive: false });
+      await branchesApi.remove(confirmTarget.id);
       showToast(`Đã tắt chi nhánh "${confirmTarget.name}"`);
       load();
     } catch (e: unknown) {
@@ -235,7 +235,10 @@ export default function BranchesPage() {
           {loading ? (
             <div className="p-12 text-center text-gray-400">Đang tải...</div>
           ) : error ? (
-            <div className="p-8 text-center text-red-500">{error}</div>
+            <div className="p-8 text-center">
+              <p className="text-red-500 mb-3">{error}</p>
+              <button onClick={load} className="text-sm text-blue-600 hover:underline">Thử lại</button>
+            </div>
           ) : branches.length === 0 ? (
             <div className="p-12 text-center text-gray-400">
               <div className="text-4xl mb-3">🏢</div>
