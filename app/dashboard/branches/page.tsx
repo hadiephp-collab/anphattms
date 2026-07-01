@@ -270,6 +270,7 @@ export default function BranchesPage() {
                       <td className="px-4 py-3 text-gray-400 text-xs">{i + 1}</td>
                       <td className="px-4 py-3">
                         <div className="font-semibold text-gray-900">{b.name}</div>
+                        {b.code && <div className="text-xs text-blue-500 font-mono">{b.code}</div>}
                         {b.email && <div className="text-xs text-gray-400">{b.email}</div>}
                         {b.ghiChu && <div className="text-xs text-gray-400 italic truncate max-w-48">{b.ghiChu}</div>}
                       </td>
@@ -512,7 +513,7 @@ export default function BranchesPage() {
       {/* Toast */}
       {toast && (
         <div className={`fixed bottom-6 right-6 z-50 text-white text-sm px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 ${
-          toastType === 'error' ? 'bg-red-600' : 'bg-gray-900'
+          toastType === 'error' ? 'bg-red-600' : 'bg-green-600'
         }`}>
           {toastType === 'error' ? (
             <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

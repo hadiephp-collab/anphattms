@@ -15,6 +15,7 @@ async function authFetch(path: string, options: RequestInit = {}) {
 
 export interface Branch {
   id: number;
+  code: string | null;
   name: string;
   address: string | null;
   phone: string | null;
