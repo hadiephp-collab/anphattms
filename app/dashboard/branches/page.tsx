@@ -28,7 +28,6 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 type ToastType = 'success' | 'error';
 
 export default function BranchesPage() {
-  const [tab, setTab] = useState<'list' | 'inventory'>('list');
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -230,18 +229,8 @@ export default function BranchesPage() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
-        {([['list', 'Danh sách'], ['inventory', 'Tồn kho theo chi nhánh']] as const).map(([key, label]) => (
-          <button key={key} onClick={() => setTab(key)}
-            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              tab === key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-            }`}>{label}</button>
-        ))}
-      </div>
-
-      {/* Tab: Danh sách */}
-      {tab === 'list' && (
+      {/* Danh sách */}
+      {(
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           {loading ? (
             <div className="p-12 text-center text-gray-400">Đang tải...</div>
@@ -338,22 +327,6 @@ export default function BranchesPage() {
               </table>
             </div>
           )}
-        </div>
-      )}
-
-      {/* Tab: Tồn kho theo chi nhánh */}
-      {tab === 'inventory' && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-          <div className="text-5xl mb-4">🏗️</div>
-          <h3 className="text-lg font-semibold text-gray-700 mb-2">Tồn kho theo chi nhánh</h3>
-          <p className="text-gray-500 text-sm max-w-md mx-auto">
-            Tính năng này sẽ khả dụng sau khi module phân quyền chi nhánh được hoàn thiện.
-            Hiện tại tồn kho đang được theo dõi theo tổng toàn hệ thống.
-          </p>
-          <p className="text-gray-400 text-xs mt-3">
-            Xem tồn kho tổng tại:{' '}
-            <a href="/dashboard/inventory" className="text-blue-500 hover:underline">Quản lý kho</a>
-          </p>
         </div>
       )}
 
