@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { settingsApi, StoreSetting, PaymentMethod } from '@/lib/settings';
 
 // ─── Toast ─────────────────────────────────────────────────────────────────
@@ -366,7 +367,10 @@ const TABS = ['Thông Tin & Hệ Thống', 'Phương Thức Thanh Toán'] as con
 type Tab = typeof TABS[number];
 
 export default function CaiDatChungPage() {
-  const [activeTab, setActiveTab] = useState<Tab>('Thông Tin & Hệ Thống');
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState<Tab>(() =>
+    searchParams.get('tab') === 'pttt' ? 'Phương Thức Thanh Toán' : 'Thông Tin & Hệ Thống'
+  );
   const [setting, setSetting] = useState<StoreSetting | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
