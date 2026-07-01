@@ -51,7 +51,7 @@ const navSections: NavSection[] = [
           { href: '/dashboard/products', label: 'Danh sách', exact: true },
           { href: '/dashboard/products/categories', label: 'Loại sản phẩm' },
           { href: '/dashboard/products/bang-gia', label: 'Bảng Giá' },
-          { href: '/dashboard/products/don-vi-tinh', label: 'Đơn Vị Tính', soon: true },
+          { href: '/dashboard/products/don-vi-tinh', label: 'Đơn Vị Tính' },
         ],
       },
       {
