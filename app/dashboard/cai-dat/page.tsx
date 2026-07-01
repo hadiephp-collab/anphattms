@@ -111,6 +111,16 @@ const groups: SettingGroup[] = [
         ),
       },
       {
+        href: '/dashboard/thu-chi/loai-phieu',
+        label: 'Loại Phiếu Thu / Chi',
+        description: 'Quản lý danh mục loại phiếu thu và phiếu chi',
+        icon: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+        ),
+      },
+      {
         href: '/dashboard/products/don-vi-tinh',
         label: 'Đơn Vị Tính',
         description: 'Quản lý đơn vị đo lường: cái, hộp, kg, thùng...',
@@ -121,15 +131,71 @@ const groups: SettingGroup[] = [
         ),
         soon: true,
       },
+    ],
+  },
+  {
+    title: 'Bán Hàng',
+    cards: [
       {
-        href: '/dashboard/thu-chi/loai-phieu',
-        label: 'Loại Phiếu Thu / Chi',
-        description: 'Quản lý danh mục loại phiếu thu và phiếu chi',
+        href: '/dashboard/cai-dat/nguon-ban-hang',
+        label: 'Nguồn Bán Hàng',
+        description: 'Cấu hình kênh đơn hàng: Zalo, Facebook, cửa hàng, website...',
         icon: (
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
           </svg>
         ),
+        soon: true,
+      },
+      {
+        href: '/dashboard/cai-dat/ly-do-huy-tra',
+        label: 'Lý Do Hủy / Trả Hàng',
+        description: 'Danh sách lý do hủy đơn và trả hàng có thể tùy chỉnh',
+        icon: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
+          </svg>
+        ),
+        soon: true,
+      },
+    ],
+  },
+  {
+    title: 'Vận Hành',
+    cards: [
+      {
+        href: '/dashboard/cai-dat/mau-in',
+        label: 'Mẫu In',
+        description: 'Thiết kế mẫu in hóa đơn, phiếu giao hàng, phiếu thu chi',
+        icon: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+          </svg>
+        ),
+        soon: true,
+      },
+      {
+        href: '/dashboard/cai-dat/nhap-xuat-du-lieu',
+        label: 'Nhập / Xuất Dữ Liệu',
+        description: 'Import sản phẩm, khách hàng từ Excel; export backup dữ liệu',
+        icon: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+        ),
+        soon: true,
+      },
+      {
+        href: '/dashboard/cai-dat/hoa-don-dien-tu',
+        label: 'Hóa Đơn Điện Tử',
+        description: 'Tích hợp phát hành HĐĐT qua MISA, VNPT, Viettel...',
+        icon: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        ),
+        soon: true,
       },
     ],
   },
@@ -154,18 +220,22 @@ export default function CaiDatPage() {
                 <Link
                   key={card.href}
                   href={card.href}
-                  className={`group flex items-start gap-3 p-3.5 bg-white rounded-xl border border-gray-100 hover:border-blue-200 hover:shadow-sm transition-all ${
-                    card.soon ? 'opacity-40 pointer-events-none' : ''
+                  className={`group flex items-start gap-3 p-3.5 bg-white rounded-xl border border-gray-100 transition-all ${
+                    card.soon
+                      ? 'opacity-40 pointer-events-none cursor-default'
+                      : 'hover:border-blue-200 hover:shadow-sm'
                   }`}
                 >
-                  <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center text-blue-500 flex-shrink-0 group-hover:bg-blue-100 transition-colors mt-0.5">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors ${
+                    card.soon ? 'bg-gray-100 text-gray-400' : 'bg-blue-50 text-blue-500 group-hover:bg-blue-100'
+                  }`}>
                     {card.icon}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-sm font-semibold text-gray-800 leading-tight">{card.label}</span>
                       {card.soon && (
-                        <span className="text-[9px] bg-gray-100 text-gray-400 rounded px-1.5 py-0.5 font-medium">WIP</span>
+                        <span className="text-[9px] bg-gray-100 text-gray-400 rounded px-1.5 py-0.5 font-medium">Sắp có</span>
                       )}
                     </div>
                     <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{card.description}</p>
