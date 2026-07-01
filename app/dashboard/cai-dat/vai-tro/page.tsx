@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { rolesApi, VaiTro, RoleDetail, VaiTroAudit, ApiError } from '@/lib/roles';
+import { permissionsApi, PermissionMeta, RolePermission } from '@/lib/permissions';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -216,12 +217,188 @@ function RoleForm({
   );
 }
 
+// ─── Permission Matrix ────────────────────────────────────────────────────────
+
+function PermissionMatrix({
+  roleId,
+  nhomQuyen,
+  onToast,
+}: {
+  roleId: string;
+  nhomQuyen: string;
+  onToast: (msg: string, ok: boolean) => void;
+}) {
+  const [meta, setMeta] = useState<PermissionMeta | null>(null);
+  const [perms, setPerms] = useState<RolePermission[]>([]);
+  const [dirty, setDirty] = useState<Map<string, boolean>>(new Map());
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    Promise.all([permissionsApi.getMeta(), permissionsApi.getPermissions(roleId)])
+      .then(([m, p]) => { setMeta(m); setPerms(p); })
+      .catch(() => onToast('Không thể tải phân quyền', false))
+      .finally(() => setLoading(false));
+  }, [roleId, onToast]);
+
+  function isAllowed(module: string, action: string): boolean {
+    const key = `${module}:${action}`;
+    if (dirty.has(key)) return dirty.get(key)!;
+    return perms.find((p) => p.module === module && p.action === action)?.allowed ?? false;
+  }
+
+  function toggle(module: string, action: string) {
+    const key = `${module}:${action}`;
+    const current = isAllowed(module, action);
+    setDirty((prev) => new Map(prev).set(key, !current));
+  }
+
+  async function save() {
+    if (dirty.size === 0) return;
+    setSaving(true);
+    try {
+      const changes = Array.from(dirty.entries()).map(([key, allowed]) => {
+        const [module, action] = key.split(':');
+        return { module, action, allowed };
+      });
+      const updated = await permissionsApi.updatePermissions(roleId, changes);
+      setPerms(updated);
+      setDirty(new Map());
+      onToast('Đã lưu phân quyền', true);
+    } catch {
+      onToast('Không thể lưu phân quyền', false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (nhomQuyen === 'admin') {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
+        <div className="w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center">
+          <svg className="w-6 h-6 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-gray-800">Vai trò Admin — Toàn quyền</p>
+          <p className="text-xs text-gray-500 mt-1">Admin luôn bypass kiểm tra quyền, không cần cấu hình từng mục</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) return <div className="py-12 text-center text-sm text-gray-400">Đang tải...</div>;
+  if (!meta) return null;
+
+  const hasDirty = dirty.size > 0;
+
+  return (
+    <div>
+      {hasDirty && (
+        <div className="flex items-center justify-between px-1 pb-3 mb-2 border-b">
+          <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+            {dirty.size} thay đổi chưa lưu
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setDirty(new Map())}
+              className="text-xs text-gray-500 hover:text-gray-800 px-3 py-1.5 rounded border border-gray-200 hover:bg-gray-50"
+            >
+              Hoàn tác
+            </button>
+            <button
+              onClick={save}
+              disabled={saving}
+              className="text-xs text-white bg-blue-600 hover:bg-blue-700 px-4 py-1.5 rounded font-medium disabled:opacity-50"
+            >
+              {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b">
+              <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-500 uppercase tracking-wide w-44">Module</th>
+              {meta.actions.map((a) => (
+                <th key={a.key} className="py-2 px-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide w-16">{a.label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {meta.modules.map((m) => {
+              const rowAllowed = meta.actions.filter((a) => isAllowed(m.key, a.key)).length;
+              const allChecked = rowAllowed === meta.actions.length;
+              return (
+                <tr key={m.key} className="hover:bg-blue-50/30">
+                  <td className="py-2.5 pr-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-700 font-medium">{m.label}</span>
+                      {rowAllowed > 0 && (
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${allChecked ? 'bg-green-100 text-green-700' : 'bg-blue-50 text-blue-600'}`}>
+                          {rowAllowed}/{meta.actions.length}
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  {meta.actions.map((a) => {
+                    const allowed = isAllowed(m.key, a.key);
+                    const isDirtyCell = dirty.has(`${m.key}:${a.key}`);
+                    return (
+                      <td key={a.key} className="py-2.5 px-3 text-center">
+                        <button
+                          onClick={() => toggle(m.key, a.key)}
+                          className={`w-5 h-5 rounded border-2 flex items-center justify-center mx-auto transition-colors ${
+                            allowed
+                              ? isDirtyCell
+                                ? 'bg-amber-500 border-amber-500 text-white'
+                                : 'bg-blue-600 border-blue-600 text-white'
+                              : isDirtyCell
+                                ? 'bg-amber-50 border-amber-400'
+                                : 'border-gray-300 hover:border-gray-400'
+                          }`}
+                          title={`${m.label} — ${a.label}`}
+                        >
+                          {allowed && (
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </button>
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {!hasDirty && (
+        <div className="mt-4 flex justify-end">
+          <button
+            onClick={save}
+            disabled={saving}
+            className="text-xs text-white bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded font-medium disabled:opacity-50 opacity-0"
+          >
+            {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Detail Modal ─────────────────────────────────────────────────────────────
 
-function DetailModal({ maVaiTro, onClose }: { maVaiTro: string; onClose: () => void }) {
+function DetailModal({ maVaiTro, onClose, onToast }: { maVaiTro: string; onClose: () => void; onToast: (msg: string, ok: boolean) => void }) {
   const [data, setData] = useState<RoleDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'users' | 'audit'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'audit' | 'perms'>('perms');
 
   useEffect(() => {
     rolesApi.getDetail(maVaiTro).then(setData).catch(console.error).finally(() => setLoading(false));
@@ -256,19 +433,31 @@ function DetailModal({ maVaiTro, onClose }: { maVaiTro: string; onClose: () => v
 
             {/* Tabs */}
             <div className="flex border-b flex-shrink-0 px-6">
-              {(['users', 'audit'] as const).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setActiveTab(t)}
-                  className={`py-2.5 px-1 mr-5 text-sm border-b-2 -mb-px ${activeTab === t ? 'border-blue-600 text-blue-600 font-medium' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-                >
-                  {t === 'users' ? `Người dùng (${data.users.length})` : 'Nhật ký'}
-                </button>
-              ))}
+              <button
+                onClick={() => setActiveTab('perms')}
+                className={`py-2.5 px-1 mr-5 text-sm border-b-2 -mb-px ${activeTab === 'perms' ? 'border-blue-600 text-blue-600 font-medium' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+              >
+                Phân Quyền
+              </button>
+              <button
+                onClick={() => setActiveTab('users')}
+                className={`py-2.5 px-1 mr-5 text-sm border-b-2 -mb-px ${activeTab === 'users' ? 'border-blue-600 text-blue-600 font-medium' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+              >
+                Người dùng ({data.users.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('audit')}
+                className={`py-2.5 px-1 mr-5 text-sm border-b-2 -mb-px ${activeTab === 'audit' ? 'border-blue-600 text-blue-600 font-medium' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+              >
+                Nhật ký
+              </button>
             </div>
 
             {/* Tab content */}
             <div className="flex-1 overflow-y-auto px-6 py-4">
+              {activeTab === 'perms' && (
+                <PermissionMatrix roleId={data.maVaiTro} nhomQuyen={data.nhomQuyen} onToast={onToast} />
+              )}
               {activeTab === 'users' && (
                 data.users.length === 0 ? (
                   <div className="text-sm text-gray-400 text-center py-8">Chưa có người dùng nào được gán vai trò này</div>
@@ -697,7 +886,7 @@ export default function VaiTroPage() {
         />
       )}
       {modal?.type === 'detail' && (
-        <DetailModal maVaiTro={modal.maVaiTro} onClose={() => setModal(null)} />
+        <DetailModal maVaiTro={modal.maVaiTro} onClose={() => setModal(null)} onToast={showToast} />
       )}
       {modal?.type === 'deactivate' && (
         <DeactivateConfirmModal
