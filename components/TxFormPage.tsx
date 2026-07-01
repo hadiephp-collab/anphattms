@@ -4,6 +4,8 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { transactionsApi, branchesApi, partnersApi, transactionGroupsApi } from '@/lib/transactions';
+import { settingsApi } from '@/lib/settings';
+import { bankAccountsApi } from '@/lib/bank-accounts';
 import { getToken } from '@/lib/auth';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -16,12 +18,21 @@ const PAYER_GROUPS = [
   { value: 'other', label: 'Đối tượng khác' },
 ];
 
-const PTTT_OPTIONS = [
-  { value: 'cash', label: 'Tiền mặt' },
-  { value: 'bank_transfer', label: 'Chuyển khoản' },
-  { value: 'momo', label: 'MoMo' },
-  { value: 'other', label: 'Khác' },
+// Fallback khi API chưa load xong
+const PTTT_FALLBACK = [
+  { code: 'TM', name: 'Tiền mặt' },
+  { code: 'CK', name: 'Chuyển khoản' },
+  { code: 'MM', name: 'MoMo' },
+  { code: 'KH', name: 'Khác' },
 ];
+
+// Map giá trị enum cũ (trước khi có bảng payment_methods) → code mới
+const LEGACY_PM_MAP: Record<string, string> = {
+  cash: 'TM',
+  bank_transfer: 'CK',
+  momo: 'MM',
+  other: 'KH',
+};
 
 interface Props {
   type: 'receipt' | 'payment';
@@ -48,7 +59,8 @@ export default function TxFormPage({ type, txId }: Props) {
     groupId: '',
     category: '',
     amount: '',
-    paymentMethod: 'cash',
+    paymentMethod: 'TM',
+    bankAccountId: '',
     date: todayLocal,
     reference: '',
     affectsBusinessResult: true,
@@ -59,6 +71,8 @@ export default function TxFormPage({ type, txId }: Props) {
     tags: '',
   });
 
+  const [ptttOptions, setPtttOptions] = useState<{ code: string; name: string }[]>(PTTT_FALLBACK);
+  const [bankAccounts, setBankAccounts] = useState<{ id: number; code: string; bankName: string; accountNumber: string; accountHolder: string }[]>([]);
   const [partners, setPartners] = useState<{ id: number; name: string; code?: string; type?: string }[]>([]);
   const [groups, setGroups] = useState<{ id: number; name: string; affectsBusinessResult: boolean; isActive?: boolean }[]>([]);
   const [branches, setBranches] = useState<{ id: number; name: string }[]>([]);
@@ -90,9 +104,13 @@ export default function TxFormPage({ type, txId }: Props) {
     transactionGroupsApi.getAll(type).then((r: any) => setGroups(r || [])).catch(() => {});
     branchesApi.getAll().then((r: any) => setBranches(r.data || r || [])).catch(() => {});
     transactionsApi.getCategories().then((r: any) => setCategories(r[type === 'receipt' ? 'receipt' : 'payment'] || [])).catch(() => {});
+    settingsApi.getPaymentMethods(true).then((r: any) => { if (r?.length) setPtttOptions(r); }).catch(() => {});
+    bankAccountsApi.getAll(true).then((r: any) => setBankAccounts(r || [])).catch(() => {});
 
     if (txId) {
       transactionsApi.getOne(txId).then((tx: any) => {
+        const rawPm: string = tx.paymentMethod || 'TM';
+        const pm = LEGACY_PM_MAP[rawPm] ?? rawPm;
         setTxCode(tx.code || '');
         setForm({
           payerType: tx.payerType || '',
@@ -100,7 +118,8 @@ export default function TxFormPage({ type, txId }: Props) {
           groupId: tx.groupId ? String(tx.groupId) : '',
           category: tx.category || '',
           amount: String(tx.amount || ''),
-          paymentMethod: tx.paymentMethod || 'cash',
+          paymentMethod: pm,
+          bankAccountId: tx.bankAccountId ? String(tx.bankAccountId) : '',
           date: tx.date ? tx.date.slice(0, 10) : todayLocal,
           reference: tx.reference || '',
           affectsBusinessResult: tx.affectsBusinessResult !== false,
@@ -146,6 +165,7 @@ export default function TxFormPage({ type, txId }: Props) {
         type,
         amount: Number(form.amount),
         paymentMethod: form.paymentMethod,
+        bankAccountId: form.bankAccountId ? Number(form.bankAccountId) : undefined,
         date: form.date,
         affectsBusinessResult: form.affectsBusinessResult,
         hopLeTax: !isReceipt ? form.hopLeTax : undefined,
@@ -316,10 +336,23 @@ export default function TxFormPage({ type, txId }: Props) {
                   </div>
                   <div>
                     <label className={labelCls}>Hình thức thanh toán <span className="text-red-500">*</span></label>
-                    <select value={form.paymentMethod} onChange={e => set('paymentMethod', e.target.value)} className={inputCls}>
-                      {PTTT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    <select value={form.paymentMethod} onChange={e => { set('paymentMethod', e.target.value); set('bankAccountId', ''); }} className={inputCls}>
+                      {ptttOptions.map(o => <option key={o.code} value={o.code}>{o.name}</option>)}
                     </select>
                   </div>
+                  {form.paymentMethod === 'CK' && (
+                    <div>
+                      <label className={labelCls}>Tài khoản ngân hàng</label>
+                      <select value={form.bankAccountId} onChange={e => set('bankAccountId', e.target.value)} className={inputCls}>
+                        <option value="">— Chọn tài khoản —</option>
+                        {bankAccounts.map(b => (
+                          <option key={b.id} value={String(b.id)}>
+                            {b.bankName} — {b.accountNumber} ({b.accountHolder})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-4 space-y-2">
