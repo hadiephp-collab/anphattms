@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { branchesApi, Branch, BranchFormData } from '@/lib/branches';
+import { employeesApi } from '@/lib/employees';
 
 const TIMEZONES = [
   { value: 'Asia/Ho_Chi_Minh', label: 'Việt Nam (UTC+7)' },
@@ -43,6 +44,8 @@ export default function BranchesPage() {
   const [toast, setToast] = useState('');
   const [toastType, setToastType] = useState<ToastType>('success');
 
+  const [employees, setEmployees] = useState<{ id: number; fullName: string }[]>([]);
+
   const showToast = (msg: string, type: ToastType = 'success') => {
     setToast(msg);
     setToastType(type);
@@ -63,6 +66,12 @@ export default function BranchesPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    employeesApi.getAll({ isActive: 'true', limit: '200' })
+      .then((res: any) => setEmployees((res.items ?? res).map((e: any) => ({ id: e.id, fullName: e.fullName }))))
+      .catch(() => {});
+  }, []);
 
   function openAdd() {
     setEditingId(null);
@@ -364,9 +373,13 @@ export default function BranchesPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1">Người phụ trách</label>
-                  <input value={form.nguoiPhuTrach ?? ''} onChange={e => setForm(f => ({ ...f, nguoiPhuTrach: e.target.value }))}
-                    placeholder="Họ tên"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <select value={form.nguoiPhuTrach ?? ''} onChange={e => setForm(f => ({ ...f, nguoiPhuTrach: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">— Chọn nhân viên —</option>
+                    {employees.map(emp => (
+                      <option key={emp.id} value={emp.fullName}>{emp.fullName}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1">Số nhân viên</label>
