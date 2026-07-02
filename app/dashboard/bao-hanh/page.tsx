@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   warrantiesApi, warrantyRequestsApi,
   Warranty, WarrantyKpi,
   WarrantyRequest, WarrantyRequestKpi,
 } from '@/lib/warranties';
+import { productsApi } from '@/lib/products';
 
 type ToastType = 'success' | 'error';
 type Tab = 'phieu' | 'yeu-cau';
@@ -491,10 +492,41 @@ function YeuCauTab({ showToast }: { showToast: (m: string, t?: ToastType) => voi
   const [page, setPage] = useState(1);
   const limit = 20;
 
+  // Product search dropdown
+  const [productQuery, setProductQuery] = useState('');
+  const [productSuggestions, setProductSuggestions] = useState<any[]>([]);
+  const [showProductDrop, setShowProductDrop] = useState(false);
+  const productSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function searchProducts(q: string) {
+    setProductQuery(q);
+    setCreateForm(f => ({ ...f, productName: q, productCode: '', productId: undefined }));
+    setShowProductDrop(true);
+    if (productSearchTimer.current) clearTimeout(productSearchTimer.current);
+    if (!q.trim()) { setProductSuggestions([]); return; }
+    productSearchTimer.current = setTimeout(async () => {
+      try {
+        const res = await productsApi.getAll({ search: q, isActive: 'true', limit: '10' });
+        setProductSuggestions((res as any).data ?? res);
+      } catch { setProductSuggestions([]); }
+    }, 300);
+  }
+
+  function selectProduct(p: any) {
+    setProductQuery(p.name);
+    setCreateForm(f => ({ ...f, productName: p.name, productCode: p.code, productId: p.id }));
+    setProductSuggestions([]);
+    setShowProductDrop(false);
+  }
+
   // Create modal
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [createForm, setCreateForm] = useState({
+  const [createForm, setCreateForm] = useState<{
+    customerName: string; productName: string; productCode: string; productId?: number;
+    serial: string; issueDescription: string; receivedDate: string;
+    estimatedReturnDate: string; notes: string;
+  }>({
     customerName: '', productName: '', productCode: '', serial: '',
     issueDescription: '', receivedDate: localDateStr(), estimatedReturnDate: '', notes: '',
   });
@@ -525,6 +557,7 @@ function YeuCauTab({ showToast }: { showToast: (m: string, t?: ToastType) => voi
 
   function openCreate() {
     setCreateForm({ customerName: '', productName: '', productCode: '', serial: '', issueDescription: '', receivedDate: localDateStr(), estimatedReturnDate: '', notes: '' });
+    setProductQuery(''); setProductSuggestions([]); setShowProductDrop(false);
     setShowCreate(true);
   }
 
@@ -535,6 +568,7 @@ function YeuCauTab({ showToast }: { showToast: (m: string, t?: ToastType) => voi
     try {
       await warrantyRequestsApi.create({
         customerName: createForm.customerName || undefined,
+        productId: createForm.productId,
         productName: createForm.productName || undefined,
         productCode: createForm.productCode || undefined,
         serial: createForm.serial || undefined,
@@ -715,16 +749,42 @@ function YeuCauTab({ showToast }: { showToast: (m: string, t?: ToastType) => voi
                     placeholder="Mã serial hoặc IMEI" className={`${inputCls} font-mono`} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={labelCls}>Tên sản phẩm</label>
-                  <input value={createForm.productName} onChange={e => setCreateForm(f => ({ ...f, productName: e.target.value }))}
-                    placeholder="Tên sản phẩm" className={inputCls} />
-                </div>
-                <div>
-                  <label className={labelCls}>Mã sản phẩm</label>
-                  <input value={createForm.productCode} onChange={e => setCreateForm(f => ({ ...f, productCode: e.target.value }))}
-                    placeholder="Mã SP" className={inputCls} />
+              {/* Product search */}
+              <div>
+                <label className={labelCls}>Sản phẩm</label>
+                <div className="relative">
+                  <input
+                    value={productQuery}
+                    onChange={e => searchProducts(e.target.value)}
+                    onFocus={() => productQuery && setShowProductDrop(true)}
+                    onBlur={() => setTimeout(() => setShowProductDrop(false), 150)}
+                    placeholder="Tìm tên hoặc mã sản phẩm..."
+                    className={inputCls}
+                  />
+                  {createForm.productCode && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
+                      {createForm.productCode}
+                    </span>
+                  )}
+                  {showProductDrop && productSuggestions.length > 0 && (
+                    <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      {productSuggestions.map((p: any) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onMouseDown={() => selectProduct(p)}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 flex items-center justify-between gap-2">
+                          <span className="font-medium text-gray-900 truncate">{p.name}</span>
+                          <span className="font-mono text-xs text-gray-400 flex-shrink-0">{p.code}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {showProductDrop && productQuery && productSuggestions.length === 0 && (
+                    <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-sm px-3 py-2 text-sm text-gray-400">
+                      Không tìm thấy sản phẩm
+                    </div>
+                  )}
                 </div>
               </div>
               <div>
