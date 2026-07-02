@@ -64,6 +64,110 @@ export interface ExtendWarrantyResponse {
   newEndDate: string;
 }
 
+// ─── Warranty Requests ───────────────────────────────────────────────────────
+
+export interface WarrantyRequest {
+  id: number;
+  code: string;
+  warrantyId: number | null;
+  warrantyCode: string | null;
+  customerId: number | null;
+  customerName: string | null;
+  productId: number | null;
+  productCode: string | null;
+  productName: string | null;
+  serial: string | null;
+  issueDescription: string;
+  receivedDate: string;
+  receivedById: number | null;
+  receivedByName: string | null;
+  status: 'pending' | 'in_progress' | 'done' | 'returned' | 'rejected';
+  resolution: 'repaired' | 'replaced' | 'rejected' | 'other' | null;
+  resolutionNote: string | null;
+  estimatedReturnDate: string | null;
+  actualReturnDate: string | null;
+  branchId: number | null;
+  notes: string | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface WarrantyRequestKpi {
+  total: number;
+  pending: number;
+  inProgress: number;
+  done: number;
+  returned: number;
+  rejected: number;
+}
+
+export interface WarrantyRequestListResponse {
+  data: WarrantyRequest[];
+  total: number;
+  page: number;
+  limit: number;
+  kpi: WarrantyRequestKpi;
+}
+
+export const warrantyRequestsApi = {
+  getAll: (params?: {
+    q?: string;
+    status?: string;
+    branchId?: number;
+    from?: string;
+    to?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<WarrantyRequestListResponse> => {
+    const qs = new URLSearchParams();
+    if (params?.q) qs.set('q', params.q);
+    if (params?.status) qs.set('status', params.status);
+    if (params?.branchId) qs.set('branchId', String(params.branchId));
+    if (params?.from) qs.set('from', params.from);
+    if (params?.to) qs.set('to', params.to);
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    const str = qs.toString();
+    return authFetch(`/warranty-requests${str ? `?${str}` : ''}`);
+  },
+
+  getOne: (id: number): Promise<WarrantyRequest> =>
+    authFetch(`/warranty-requests/${id}`),
+
+  create: (data: {
+    warrantyId?: number;
+    customerId?: number;
+    customerName?: string;
+    productId?: number;
+    productCode?: string;
+    productName?: string;
+    serial?: string;
+    issueDescription: string;
+    receivedDate: string;
+    estimatedReturnDate?: string;
+    branchId?: number;
+    notes?: string;
+  }): Promise<WarrantyRequest> =>
+    authFetch('/warranty-requests', { method: 'POST', body: JSON.stringify(data) }),
+
+  update: (id: number, data: Partial<{
+    status: string;
+    resolution: string;
+    resolutionNote: string;
+    estimatedReturnDate: string;
+    actualReturnDate: string;
+    issueDescription: string;
+    serial: string;
+    notes: string;
+  }>): Promise<WarrantyRequest> =>
+    authFetch(`/warranty-requests/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+  remove: (id: number): Promise<{ message: string }> =>
+    authFetch(`/warranty-requests/${id}`, { method: 'DELETE' }),
+};
+
+// ─── Warranties API ───────────────────────────────────────────────────────────
+
 export const warrantiesApi = {
   getAll: (params?: {
     q?: string;
