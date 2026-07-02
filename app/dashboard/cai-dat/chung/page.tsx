@@ -29,6 +29,8 @@ function CompanyTab({ setting, onSaved }: { setting: StoreSetting; onSaved: (s: 
     defaultVatRate: setting.defaultVatRate ?? '10',
     invoiceWarningDays: setting.invoiceWarningDays ?? '30',
   });
+  const [warrantyAutoCreate, setWarrantyAutoCreate] = useState(setting.warrantyAutoCreate ?? false);
+  const [warrantyAlertEnabled, setWarrantyAlertEnabled] = useState(setting.warrantyAlertEnabled ?? true);
   const [saving, setSaving] = useState(false);
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -38,7 +40,7 @@ function CompanyTab({ setting, onSaved }: { setting: StoreSetting; onSaved: (s: 
     e.preventDefault();
     setSaving(true);
     try {
-      const updated = await settingsApi.update(form);
+      const updated = await settingsApi.update({ ...form, warrantyAutoCreate, warrantyAlertEnabled });
       onSaved(updated as StoreSetting);
       show('Đã lưu cài đặt');
     } catch (err: any) {
@@ -133,6 +135,37 @@ function CompanyTab({ setting, onSaved }: { setting: StoreSetting; onSaved: (s: 
             />
             <p className="text-xs text-gray-400 mt-1">HĐ VAT nháp quá số ngày này sẽ hiện cảnh báo</p>
           </div>
+        </div>
+      </div>
+
+      {/* Cài đặt bảo hành */}
+      <div className="border-t pt-6">
+        <h3 className="text-base font-semibold text-gray-900 mb-4">Bảo hành</h3>
+        <div className="space-y-3">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <button
+              type="button"
+              onClick={() => setWarrantyAutoCreate(v => !v)}
+              className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${warrantyAutoCreate ? 'bg-blue-500' : 'bg-gray-300'}`}>
+              <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${warrantyAutoCreate ? 'translate-x-5' : 'translate-x-1'}`} />
+            </button>
+            <div>
+              <div className="text-sm font-medium text-gray-800">Tự động tạo phiếu bảo hành khi bán hàng</div>
+              <div className="text-xs text-gray-400">Khi tắt: phiếu BH sẽ không được tạo dù sản phẩm có thời hạn BH</div>
+            </div>
+          </label>
+          <label className="flex items-center gap-3 cursor-pointer">
+            <button
+              type="button"
+              onClick={() => setWarrantyAlertEnabled(v => !v)}
+              className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${warrantyAlertEnabled ? 'bg-blue-500' : 'bg-gray-300'}`}>
+              <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${warrantyAlertEnabled ? 'translate-x-5' : 'translate-x-1'}`} />
+            </button>
+            <div>
+              <div className="text-sm font-medium text-gray-800">Hiển thị cảnh báo bảo hành sắp hết hạn</div>
+              <div className="text-xs text-gray-400">BH còn dưới 30 ngày sẽ hiện badge "Sắp hết" trong danh sách</div>
+            </div>
+          </label>
         </div>
       </div>
 

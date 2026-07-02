@@ -26,6 +26,8 @@ export interface StoreSetting {
   printFooter: string | null;
   defaultVatRate: string | null;
   invoiceWarningDays: string | null;
+  warrantyAutoCreate: boolean;
+  warrantyAlertEnabled: boolean;
   updatedAt: string;
 }
 

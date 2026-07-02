@@ -19,7 +19,7 @@ interface ProductData {
   lowStockThreshold?: number; barcode?: string; description?: string; notes?: string;
   hasVariants?: boolean; isSaleable?: boolean; isActive?: boolean;
   warehouseLocation?: string; supplierCode?: string; weight?: number; weightUnit?: string;
-  tags?: string[]; defaultSupplierId?: number;
+  tags?: string[]; defaultSupplierId?: number; warrantyMonths?: number;
   variants?: ProductVariant[]; images?: ProductImage[]; invoiceNames?: InvoiceName[];
 }
 
@@ -89,6 +89,7 @@ export default function ProductForm({ initialData, mode }: { initialData?: Produ
   const [notes, setNotes] = useState(initialData?.notes || '');
   const [warehouseLocation, setWarehouseLocation] = useState(initialData?.warehouseLocation || '');
   const [supplierCode, setSupplierCode] = useState(initialData?.supplierCode || '');
+  const [warrantyMonths, setWarrantyMonths] = useState(initialData?.warrantyMonths?.toString() || '');
   const [weight, setWeight] = useState(initialData?.weight?.toString() || '');
   const [weightUnit, setWeightUnit] = useState(initialData?.weightUnit || 'kg');
   const [isSaleable, setIsSaleable] = useState(initialData?.isSaleable !== false);
@@ -273,6 +274,7 @@ export default function ProductForm({ initialData, mode }: { initialData?: Produ
         ...(warehouseLocation.trim() && { warehouseLocation: warehouseLocation.trim() }),
         ...(supplierCode.trim() && { supplierCode: supplierCode.trim() }),
         ...(weight && { weight: Number(weight), weightUnit }),
+        ...(warrantyMonths !== '' && Number(warrantyMonths) >= 0 && { warrantyMonths: Number(warrantyMonths) }),
         hasVariants,
         isSaleable,
         ...(mode === 'edit' && { isActive }),
@@ -486,6 +488,12 @@ export default function ProductForm({ initialData, mode }: { initialData?: Produ
                       <option value="g">g</option>
                     </select>
                   </div>
+                </div>
+                <div>
+                  <label className={labelCls}>Thời hạn bảo hành (tháng)</label>
+                  <input type="number" value={warrantyMonths} onChange={(e) => setWarrantyMonths(e.target.value)}
+                    placeholder="VD: 12" min={0} max={360} className={inputCls} />
+                  <p className="text-xs text-gray-400 mt-1">Để trống nếu không có bảo hành</p>
                 </div>
               </div>
             </div>
