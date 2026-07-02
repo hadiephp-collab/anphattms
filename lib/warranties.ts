@@ -144,6 +144,7 @@ export const warrantyRequestsApi = {
     serial?: string;
     issueDescription: string;
     receivedDate: string;
+    receivedByName?: string;
     estimatedReturnDate?: string;
     branchId?: number;
     notes?: string;
