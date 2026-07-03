@@ -37,11 +37,55 @@ export interface MonthlyPoint {
   orderCount: number;
 }
 
+export interface SalesReportKpi {
+  soDon: number;
+  doanhThu: number;
+  doanhThuTrungBinh: number;
+  soDonPrev: number;
+  doanhThuPrev: number;
+  trendSoDon: number;
+  trendDoanhThu: number;
+}
+
+export interface SalesSeriesPoint {
+  period: string;
+  soDon: number;
+  doanhThu: number;
+}
+
+export interface SalesTopProduct {
+  productCode: string;
+  productName: string;
+  category: string;
+  tongSoLuong: number;
+  doanhThu: number;
+}
+
+export interface SalesReport {
+  period: { from: string; to: string; groupBy: string };
+  kpi: SalesReportKpi;
+  series: SalesSeriesPoint[];
+  topProducts: SalesTopProduct[];
+  byCategory: { category: string; doanhThu: number; tongSoLuong: number }[];
+  byPaymentMethod: { paymentMethod: string; soLanThanhToan: number; tongThanhToan: number }[];
+}
+
 export const reportsApi = {
   getSummary: (dateFrom: string, dateTo: string, branchId?: number): Promise<ReportSummary> => {
     const q = new URLSearchParams({ dateFrom, dateTo });
     if (branchId) q.set('branchId', String(branchId));
     return authFetch(`/reports/summary?${q}`);
+  },
+
+  getSalesReport: (
+    from: string,
+    to: string,
+    groupBy: 'day' | 'week' | 'month',
+    branchId?: number,
+  ): Promise<SalesReport> => {
+    const q = new URLSearchParams({ from, to, groupBy });
+    if (branchId) q.set('branchId', String(branchId));
+    return authFetch(`/reports/sales?${q}`);
   },
 
   getMonthlyTrend: (year: number, branchId?: number): Promise<MonthlyPoint[]> => {

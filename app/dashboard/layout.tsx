@@ -135,7 +135,7 @@ const navSections: NavSection[] = [
         icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>,
         children: [
           { href: '/dashboard/bao-cao', label: 'Tổng Hợp', exact: true },
-          { href: '/dashboard/bao-cao/ban-hang', label: 'Bán Hàng', soon: true },
+          { href: '/dashboard/bao-cao/ban-hang', label: 'Bán Hàng' },
           { href: '/dashboard/bao-cao/loi-nhuan', label: 'Lợi Nhuận & Thuế', soon: true },
           { href: '/dashboard/bao-cao/crm', label: 'CRM', soon: true },
           { href: '/dashboard/bao-cao/ton-kho', label: 'Tồn Kho', soon: true },
