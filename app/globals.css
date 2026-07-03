@@ -38,3 +38,10 @@ a, button, [role="button"], input, select, textarea {
 /* Ẩn thanh cuộn nhưng vẫn cuộn được */
 .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; width: 0; height: 0; background: transparent; }
+
+/* ─── In ấn ──────────────────────────────────────────────────── */
+@media print {
+  body { background: #fff !important; color: #000 !important; }
+  .no-print { display: none !important; }
+  @page { margin: 12mm 15mm; size: A4 portrait; }
+}

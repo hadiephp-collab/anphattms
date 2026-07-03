@@ -234,7 +234,7 @@ export default function OrderDetailPage() {
         {/* Action buttons */}
         <div className="flex items-center gap-2 flex-wrap justify-end">
           <button
-            onClick={() => window.open(`/dashboard/orders/${id}/print`, '_blank')}
+            onClick={() => window.open(`/print/orders/${id}`, '_blank')}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
