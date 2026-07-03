@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { isLoggedIn, getUser, clearAuth } from '@/lib/auth';
+import { capitalApi } from '@/lib/capital';
 
 interface NavChild { href: string; label: string; exact?: boolean; soon?: boolean; }
 interface NavItem {
@@ -113,7 +114,7 @@ const navSections: NavSection[] = [
           { href: '/dashboard/ho-tro-ke-toan-thue', label: 'Hỗ Trợ Kế Toán Thuế', exact: false },
           { href: '/dashboard/ton-kho-hd',    label: 'Tồn Kho HĐ (VAT)', exact: false },
           { href: '/dashboard/bao-cao-vat',   label: 'Báo Cáo Thuế VAT', exact: false },
-          { href: '/dashboard/ke-toan/von-breakeven', label: 'Vốn & BreakEven', soon: true },
+          { href: '/dashboard/ke-toan/von-breakeven', label: 'Vốn & BreakEven' },
         ],
       },
     ],
@@ -168,11 +169,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [capitalNguyHiem, setCapitalNguyHiem] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isLoggedIn()) { router.push('/login'); return; }
     setUser(getUser());
+    capitalApi.getDashboard().then(d => {
+      setCapitalNguyHiem(d.healthState === 'NGUY_HIEM');
+    }).catch(() => {});
   }, [router]);
 
   useEffect(() => {
@@ -233,6 +238,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         }`}>
                         <span className={active ? 'text-blue-400' : item.soon ? 'text-white/30' : 'text-white/60'}>{item.icon}</span>
                         <span className="flex-1 truncate">{item.label}</span>
+                        {capitalNguyHiem && item.label === 'Kế Toán' && (
+                          <span className="w-2 h-2 bg-red-500 rounded-full flex-shrink-0 animate-pulse" title="Tài Sản Ròng ở mức Nguy Hiểm" />
+                        )}
                         {item.soon && (
                           <span className="text-[9px] bg-white/10 text-white/30 rounded px-1 py-0.5 font-medium flex-shrink-0">WIP</span>
                         )}
