@@ -65,6 +65,7 @@ export default function TxFormPage({ type, txId }: Props) {
     reference: '',
     affectsBusinessResult: true,
     hopLeTax: false,
+    isFixed: false,
     updatePartnerDebt: false,
     branchId: '',
     note: '',
@@ -124,6 +125,7 @@ export default function TxFormPage({ type, txId }: Props) {
           reference: tx.reference || '',
           affectsBusinessResult: tx.affectsBusinessResult !== false,
           hopLeTax: (tx as any).hopLeTax ?? false,
+          isFixed: (tx as any).isFixed ?? false,
           updatePartnerDebt: tx.partnerDebtAdjusted ?? false,
           branchId: tx.branchId ? String(tx.branchId) : '',
           note: tx.note || '',
@@ -169,6 +171,7 @@ export default function TxFormPage({ type, txId }: Props) {
         date: form.date,
         affectsBusinessResult: form.affectsBusinessResult,
         hopLeTax: !isReceipt ? form.hopLeTax : undefined,
+        isFixed: !isReceipt ? form.isFixed : undefined,
         updatePartnerDebt: form.partnerId ? form.updatePartnerDebt : undefined,
         groupId: form.groupId ? Number(form.groupId) : undefined,
         category: form.category || undefined,
@@ -370,6 +373,17 @@ export default function TxFormPage({ type, txId }: Props) {
                       <span className="text-sm text-gray-700">
                         Chi phí hợp lệ tính thuế TNDN
                         <span className="ml-1.5 text-xs text-gray-400">(xuất hiện trong báo cáo thuế)</span>
+                      </span>
+                    </label>
+                  )}
+                  {!isReceipt && (
+                    <label className="flex items-center gap-2.5 cursor-pointer">
+                      <input type="checkbox" checked={form.isFixed as boolean}
+                        onChange={e => set('isFixed', e.target.checked)}
+                        className="w-4 h-4 rounded border-gray-300" />
+                      <span className="text-sm text-gray-700">
+                        Chi phí cố định (dùng tính điểm hoà vốn)
+                        <span className="ml-1.5 text-xs text-gray-400">(lương, thuê mặt bằng, KH tài sản...)</span>
                       </span>
                     </label>
                   )}
