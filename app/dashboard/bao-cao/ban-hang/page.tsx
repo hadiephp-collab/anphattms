@@ -162,6 +162,20 @@ export default function BaoCaoBanHangPage() {
       ];
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(s2), 'Top Sản Phẩm');
 
+      // Sheet 3: Top Khách Hàng
+      const s3 = [
+        ['Mã KH', 'Tên khách hàng', 'Số đơn', 'Doanh thu (VNĐ)'],
+        ...data.byCustomer.map((r) => [r.customerCode, r.customerName, r.soDon, r.doanhThu]),
+      ];
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(s3), 'Top Khách Hàng');
+
+      // Sheet 4: Top Nhân Viên
+      const s4 = [
+        ['Mã NV', 'Họ tên', 'Số đơn', 'Doanh thu (VNĐ)'],
+        ...data.byEmployee.map((r) => [r.employeeCode, r.employeeName, r.soDon, r.doanhThu]),
+      ];
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(s4), 'Top Nhân Viên');
+
       XLSX.writeFile(wb, `BaoCaoBanHang_${from}_${to}.xlsx`);
     });
   }
@@ -169,6 +183,8 @@ export default function BaoCaoBanHangPage() {
   const kpi = data?.kpi;
   const maxDoanhThu = data ? Math.max(...data.byCategory.map((c) => c.doanhThu), 1) : 1;
   const maxPttt = data ? Math.max(...data.byPaymentMethod.map((p) => p.tongThanhToan), 1) : 1;
+  const maxEmp = data?.byEmployee.length ? Math.max(...data.byEmployee.map((e) => e.doanhThu), 1) : 1;
+  const maxCust = data?.byCustomer.length ? Math.max(...data.byCustomer.map((c) => c.doanhThu), 1) : 1;
 
   return (
     <div className="space-y-5">
@@ -280,7 +296,7 @@ export default function BaoCaoBanHangPage() {
       {!loading && data && (
         <>
           {/* KPI */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-4 gap-4">
             <KpiCard
               label="Số Đơn"
               value={data.kpi.soDon.toLocaleString('vi-VN')}
@@ -296,6 +312,11 @@ export default function BaoCaoBanHangPage() {
             <KpiCard
               label="Trung Bình / Đơn"
               value={fmtShort(data.kpi.doanhThuTrungBinh)}
+            />
+            <KpiCard
+              label="Trả Hàng (đã duyệt)"
+              value={`${data.returnsKpi.soPhieuTra} phiếu`}
+              sub={data.returnsKpi.tongHoanTien > 0 ? `Hoàn: ${fmtShort(data.returnsKpi.tongHoanTien)}` : 'Không có hoàn tiền'}
             />
           </div>
 
@@ -351,6 +372,73 @@ export default function BaoCaoBanHangPage() {
                           <div className="h-2 bg-blue-500 rounded-full" style={{ width: `${pct}%` }} />
                         </div>
                         <p className="text-[10px] text-gray-400 mt-0.5">{p.soLanThanhToan} lần thanh toán</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Grid: Top Khách Hàng + Top Nhân Viên */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Top Khách Hàng */}
+            <div className="bg-white border border-gray-200 rounded-xl p-4">
+              <h3 className="text-sm font-semibold text-gray-800 mb-3">Top 10 Khách Hàng</h3>
+              {data.byCustomer.length === 0 ? (
+                <p className="text-xs text-gray-400 text-center py-6">Không có dữ liệu</p>
+              ) : (
+                <div className="space-y-2.5 overflow-auto max-h-72">
+                  {data.byCustomer.map((c, i) => {
+                    const pct = Math.round((c.doanhThu / maxCust) * 100);
+                    return (
+                      <div key={c.customerId ?? `lẻ-${i}`}>
+                        <div className="flex items-center justify-between text-xs mb-0.5">
+                          <span className="flex items-center gap-1.5 min-w-0">
+                            <span className="text-gray-400 font-mono w-4 shrink-0">{i + 1}</span>
+                            <span className="font-medium text-gray-800 truncate">{c.customerName}</span>
+                            {c.customerCode && (
+                              <span className="text-[10px] text-gray-400 shrink-0">{c.customerCode}</span>
+                            )}
+                          </span>
+                          <span className="text-gray-700 font-medium shrink-0 ml-2">{fmtShort(c.doanhThu)}</span>
+                        </div>
+                        <div className="h-1.5 bg-gray-100 rounded-full">
+                          <div className="h-1.5 bg-emerald-500 rounded-full" style={{ width: `${pct}%` }} />
+                        </div>
+                        <p className="text-[10px] text-gray-400 mt-0.5">{c.soDon} đơn hàng</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Top Nhân Viên */}
+            <div className="bg-white border border-gray-200 rounded-xl p-4">
+              <h3 className="text-sm font-semibold text-gray-800 mb-3">Top 10 Nhân Viên</h3>
+              {data.byEmployee.length === 0 ? (
+                <p className="text-xs text-gray-400 text-center py-6">Không có dữ liệu</p>
+              ) : (
+                <div className="space-y-2.5 overflow-auto max-h-72">
+                  {data.byEmployee.map((e, i) => {
+                    const pct = Math.round((e.doanhThu / maxEmp) * 100);
+                    return (
+                      <div key={e.employeeId ?? `none-${i}`}>
+                        <div className="flex items-center justify-between text-xs mb-0.5">
+                          <span className="flex items-center gap-1.5 min-w-0">
+                            <span className="text-gray-400 font-mono w-4 shrink-0">{i + 1}</span>
+                            <span className="font-medium text-gray-800 truncate">{e.employeeName}</span>
+                            {e.employeeCode && (
+                              <span className="text-[10px] text-gray-400 shrink-0">{e.employeeCode}</span>
+                            )}
+                          </span>
+                          <span className="text-gray-700 font-medium shrink-0 ml-2">{fmtShort(e.doanhThu)}</span>
+                        </div>
+                        <div className="h-1.5 bg-gray-100 rounded-full">
+                          <div className="h-1.5 bg-orange-400 rounded-full" style={{ width: `${pct}%` }} />
+                        </div>
+                        <p className="text-[10px] text-gray-400 mt-0.5">{e.soDon} đơn hàng</p>
                       </div>
                     );
                   })}

@@ -61,6 +61,22 @@ export interface SalesTopProduct {
   doanhThu: number;
 }
 
+export interface SalesByEmployee {
+  employeeId: number | null;
+  employeeName: string;
+  employeeCode: string;
+  soDon: number;
+  doanhThu: number;
+}
+
+export interface SalesByCustomer {
+  customerId: number | null;
+  customerName: string;
+  customerCode: string;
+  soDon: number;
+  doanhThu: number;
+}
+
 export interface SalesReport {
   period: { from: string; to: string; groupBy: string };
   kpi: SalesReportKpi;
@@ -68,6 +84,9 @@ export interface SalesReport {
   topProducts: SalesTopProduct[];
   byCategory: { category: string; doanhThu: number; tongSoLuong: number }[];
   byPaymentMethod: { paymentMethod: string; soLanThanhToan: number; tongThanhToan: number }[];
+  byEmployee: SalesByEmployee[];
+  byCustomer: SalesByCustomer[];
+  returnsKpi: { soPhieuTra: number; tongHoanTien: number };
 }
 
 export const reportsApi = {
