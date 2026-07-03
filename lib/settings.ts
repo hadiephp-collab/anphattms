@@ -28,6 +28,13 @@ export interface StoreSetting {
   invoiceWarningDays: string | null;
   warrantyAutoCreate: boolean;
   warrantyAlertEnabled: boolean;
+  // Print templates
+  templateHoaDon: string | null;
+  templatePhieuThu: string | null;
+  templatePhieuChi: string | null;
+  paperSizeHoaDon: string | null;
+  paperSizePhieuThu: string | null;
+  paperSizePhieuChi: string | null;
   updatedAt: string;
 }
 
