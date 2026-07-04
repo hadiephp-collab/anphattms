@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { ordersApi } from '@/lib/orders';
 import { settingsApi, StoreSetting } from '@/lib/settings';
+import { bankAccountsApi, BankAccount, getBankVietQRId } from '@/lib/bank-accounts';
 import { renderTemplate, generateItemsTable, numberToWords, localDateStr, localDateTimeStr, PM_LABEL, TemplateVars } from '@/lib/template-engine';
 import { DEFAULT_TEMPLATE_HOA_DON } from '@/lib/default-templates';
 
@@ -39,7 +40,16 @@ function fmtPaymentStatus(s: string): string {
   return m[s] || s;
 }
 
-function buildVars(order: OrderDetail, s: StoreSetting | null): TemplateVars {
+function buildPaymentQr(order: OrderDetail, bank: BankAccount | null): string {
+  if (!bank || bank.loaiTaiKhoan !== 'NGAN_HANG' || !bank.accountNumber || !bank.bankName) return '';
+  const bankId = getBankVietQRId(bank.bankName);
+  if (!bankId) return '';
+  const amount = Math.round(Number(order.totalAmount));
+  const url = `https://img.vietqr.io/image/${bankId}-${bank.accountNumber}-print.png?amount=${amount}&addInfo=${encodeURIComponent(order.code)}&accountName=${encodeURIComponent(bank.accountHolder || '')}`;
+  return `<img src="${url}" style="width:180px;height:180px;display:block" alt="QR thanh toán" />`;
+}
+
+function buildVars(order: OrderDetail, s: StoreSetting | null, bank: BankAccount | null = null): TemplateVars {
   const fmtN = (n: number) => Number(n).toLocaleString('vi-VN') + 'đ';
 
   const itemRows = order.items.map((item, i) => ({
@@ -99,6 +109,7 @@ function buildVars(order: OrderDetail, s: StoreSetting | null): TemplateVars {
     debt_amount: Number(order.debtAmount) > 0 ? fmtN(Number(order.debtAmount)) : '',
     items: itemRows,
     items_table: generateItemsTable(tableRows),
+    payment_qr: buildPaymentQr(order, bank),
   };
 }
 
@@ -113,12 +124,14 @@ export default function PrintOrderPage() {
     Promise.all([
       ordersApi.getOne(Number(id)).catch(() => null),
       settingsApi.get().catch(() => null),
-    ]).then(([order, settings]) => {
+      bankAccountsApi.getAll(true).catch(() => [] as BankAccount[]),
+    ]).then(([order, settings, bankAccounts]) => {
       if (!order) { setError('Không tìm thấy đơn hàng'); setReady(true); return; }
+      const defaultBank = (bankAccounts as BankAccount[]).find(b => b.isDefault) ?? null;
       const template = settings?.templateHoaDon || DEFAULT_TEMPLATE_HOA_DON;
       const pSize = settings?.paperSizeHoaDon || 'A4';
       setPaperSize(pSize);
-      const vars = buildVars(order as OrderDetail, settings);
+      const vars = buildVars(order as OrderDetail, settings, defaultBank);
       setHtml(renderTemplate(template, vars));
       setReady(true);
     });

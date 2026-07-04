@@ -197,6 +197,11 @@ export const KEYWORDS_HOA_DON: VarCategory[] = [
     ],
   },
   {
+    title: 'QR thanh toán', vars: [
+      { code: '{payment_qr}', label: 'Mã QR VietQR (ngân hàng mặc định — cần internet khi in)' },
+    ],
+  },
+  {
     title: 'Bảng sản phẩm — tiện ích', vars: [
       { code: '{items_table}', label: 'Bảng sản phẩm tự động (đơn giản nhất)' },
     ],

@@ -89,6 +89,28 @@ export const COMMON_BANKS = [
   'TPBank', 'MSB', 'OCB', 'SeABank', 'Eximbank', 'Khác',
 ];
 
+const BANK_VIETQR_ID: Record<string, string> = {
+  'MB Bank': '970422',
+  'Vietcombank (VCB)': '970436',
+  'BIDV': '970418',
+  'Vietinbank': '970415',
+  'Agribank': '970405',
+  'Techcombank': '970407',
+  'ACB': '970416',
+  'Sacombank': '970403',
+  'HDBank': '970437',
+  'VPBank': '970432',
+  'TPBank': '970423',
+  'MSB': '970426',
+  'OCB': '970448',
+  'SeABank': '970440',
+  'Eximbank': '970431',
+};
+
+export function getBankVietQRId(bankName: string): string | null {
+  return BANK_VIETQR_ID[bankName] ?? null;
+}
+
 export function displayName(ba: BankAccount): string {
   if (ba.tenTaiKhoan) return ba.tenTaiKhoan;
   if (ba.loaiTaiKhoan === 'TIEN_MAT') return `Tiền mặt (${ba.code})`;

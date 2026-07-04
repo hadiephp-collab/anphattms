@@ -40,6 +40,7 @@ const DEMO_HOA_DON: TemplateVars = {
     { line_stt: '3', line_name: 'Bàn phím cơ Keychron K2', line_code: 'SP003', line_qty: '1', line_unit: 'Cái', line_price: '1.500.000', line_discount_pct: '', line_total: '1.500.000' },
   ],
   items_table: DEMO_ITEMS_TABLE,
+  payment_qr: '<img src="https://img.vietqr.io/image/970422-0123456789-print.png?amount=13900000&addInfo=DH-260701-001&accountName=AN%20PHAT%20TECHNOLOGY" style="width:180px;height:180px;display:block" alt="QR thanh toán" />',
 };
 
 const DEMO_PHIEU_THU: TemplateVars = {
