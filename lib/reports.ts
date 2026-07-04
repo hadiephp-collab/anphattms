@@ -200,6 +200,82 @@ export const reportsApi = {
   },
 };
 
+// ── CRM types ────────────────────────────────────────────────────────────────
+
+export interface CrmKhItem {
+  partnerId: number;
+  partnerCode: string;
+  partnerName: string;
+  rank: string;
+  rankLabel: string;
+  soDon: number;
+  doanhThu: number;
+  lastOrderDate: string;
+}
+
+export interface CrmKhMoiItem {
+  partnerId: number;
+  partnerCode: string;
+  partnerName: string;
+  soDon: number;
+  doanhThu: number;
+}
+
+export interface CrmReport {
+  period: { from: string; to: string };
+  kpi: { tongKHMuaKy: number; khMoiCount: number; khQuayLaiCount: number; tyLeQuayLai: number };
+  topKH: CrmKhItem[];
+  khMoi: CrmKhMoiItem[];
+}
+
+export interface CrmKpi {
+  tongKH: number;
+  soKHCoNo: number;
+  tongCongNo: number;
+  soKHVIP: number;
+  soKHMoiThangNay: number;
+  calculatedAt: string;
+}
+
+export interface CrmNvItem {
+  employeeId: number | null;
+  employeeCode: string;
+  hoTen: string;
+  soDon: number;
+  soKH: number;
+  doanhThu: number;
+  doanhThuTB: number;
+  doanhThuPct: number;
+}
+
+export interface CrmStaffReport {
+  period: { from: string; to: string };
+  tongDon: number;
+  tongDoanhThu: number;
+  doanhThuTBDon: number;
+  nvList: CrmNvItem[];
+}
+
+export const crmApi = {
+  getReport: (params?: { from?: string; to?: string; branchId?: number }): Promise<CrmReport> => {
+    const q = new URLSearchParams();
+    if (params?.from)     q.set('from',     params.from);
+    if (params?.to)       q.set('to',       params.to);
+    if (params?.branchId) q.set('branchId', String(params.branchId));
+    return authFetch(`/reports/crm?${q}`);
+  },
+
+  getKpi: (): Promise<CrmKpi> => authFetch('/reports/crm/kpi'),
+
+  getStaffReport: (params?: { from?: string; to?: string; branchId?: number }): Promise<CrmStaffReport> => {
+    const q = new URLSearchParams();
+    if (params?.from)     q.set('from',     params.from);
+    if (params?.to)       q.set('to',       params.to);
+    if (params?.branchId) q.set('branchId', String(params.branchId));
+    return authFetch(`/reports/crm/staff?${q}`);
+  },
+};
+
 export const profitApi = {
   getTaxRates: () => authFetch('/profit/tax-rates'),
 
