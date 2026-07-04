@@ -173,6 +173,7 @@ export default function MauInPage() {
 
   const editorDivRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const savedRangeRef = useRef<Range | null>(null);
 
   // Load saved templates
   useEffect(() => {
@@ -278,10 +279,30 @@ export default function MauInPage() {
     document.execCommand(cmd, false, val);
   };
 
+  // Save cursor position before opening modal (contenteditable loses focus when modal opens)
+  const openKeywords = useCallback(() => {
+    if (editorMode === 'visual') {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        savedRangeRef.current = sel.getRangeAt(0).cloneRange();
+      }
+    }
+    setShowKeywords(true);
+  }, [editorMode]);
+
   // Insert keyword at cursor (works in both modes)
   const insertKeyword = useCallback((code: string) => {
     if (editorMode === 'visual') {
       editorDivRef.current?.focus();
+      // Restore saved cursor position so keyword inserts at the right spot
+      if (savedRangeRef.current) {
+        const sel = window.getSelection();
+        if (sel) {
+          sel.removeAllRanges();
+          sel.addRange(savedRangeRef.current);
+        }
+        savedRangeRef.current = null;
+      }
       document.execCommand('insertText', false, code);
       setTimeout(() => {
         if (editorDivRef.current) {
@@ -397,7 +418,7 @@ export default function MauInPage() {
             )}
 
             {/* Keyword + Reset */}
-            <button onClick={() => setShowKeywords(true)}
+            <button onClick={openKeywords}
               style={{ padding: '3px 12px', fontSize: 12, fontWeight: 600, background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', marginLeft: editorMode === 'html' ? 0 : 0 }}>
               + Thêm từ khóa
             </button>
