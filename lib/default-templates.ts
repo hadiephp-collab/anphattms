@@ -171,8 +171,12 @@ export const KEYWORDS_HOA_DON: VarCategory[] = [
     title: 'Thông tin đơn hàng', vars: [
       { code: '{order_code}', label: 'Mã đơn hàng' },
       { code: '{order_date}', label: 'Ngày tạo đơn' },
+      { code: '{order_status}', label: 'Trạng thái đơn hàng' },
+      { code: '{payment_status}', label: 'Trạng thái thanh toán' },
       { code: '{customer_name}', label: 'Tên khách hàng' },
+      { code: '{customer_code}', label: 'Mã khách hàng' },
       { code: '{customer_phone}', label: 'SĐT khách hàng' },
+      { code: '{customer_email}', label: 'Email khách hàng' },
       { code: '{customer_address}', label: 'Địa chỉ khách hàng' },
       { code: '{staff_name}', label: 'Nhân viên bán' },
       { code: '{branch_name}', label: 'Chi nhánh' },
@@ -182,6 +186,7 @@ export const KEYWORDS_HOA_DON: VarCategory[] = [
   },
   {
     title: 'Tổng giá trị', vars: [
+      { code: '{total_quantity}', label: 'Tổng số lượng SP' },
       { code: '{subtotal}', label: 'Tạm tính' },
       { code: '{discount_amount}', label: 'Giảm giá (rỗng nếu không có)' },
       { code: '{shipping_fee}', label: 'Phí vận chuyển (rỗng nếu không có)' },

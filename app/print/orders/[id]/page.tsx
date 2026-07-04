@@ -24,6 +24,21 @@ interface OrderDetail {
   }>;
 }
 
+function fmtOrderStatus(s: string): string {
+  const m: Record<string, string> = {
+    pending: 'Chờ xử lý', processing: 'Đang xử lý',
+    completed: 'Hoàn thành', cancelled: 'Đã hủy',
+  };
+  return m[s] || s;
+}
+
+function fmtPaymentStatus(s: string): string {
+  const m: Record<string, string> = {
+    unpaid: 'Chưa thanh toán', partial: 'Thanh toán một phần', paid: 'Đã thanh toán',
+  };
+  return m[s] || s;
+}
+
 function buildVars(order: OrderDetail, s: StoreSetting | null): TemplateVars {
   const fmtN = (n: number) => Number(n).toLocaleString('vi-VN') + 'đ';
 
@@ -63,13 +78,18 @@ function buildVars(order: OrderDetail, s: StoreSetting | null): TemplateVars {
     print_date: localDateTimeStr(),
     order_code: order.code,
     order_date: localDateStr(new Date(order.date)),
+    order_status: fmtOrderStatus(order.status),
+    payment_status: fmtPaymentStatus(order.paymentStatus),
     customer_name: order.customer?.name || 'Khách lẻ',
+    customer_code: (order.customer as any)?.code || '',
     customer_phone: order.customer?.phone || '',
-    customer_address: '',
+    customer_email: (order.customer as any)?.email || '',
+    customer_address: (order.customer as any)?.address || '',
     staff_name: order.assignedTo?.fullName || '',
     branch_name: '',
     notes: order.notes || '',
     payment_method: pmStr,
+    total_quantity: String(order.items.reduce((sum, i) => sum + i.quantity, 0)),
     subtotal: Number(order.subtotal) > 0 ? fmtN(Number(order.subtotal)) : '',
     discount_amount: Number(order.discountAmount) > 0 ? fmtN(Number(order.discountAmount)) : '',
     shipping_fee: Number(order.shippingFee) > 0 ? fmtN(Number(order.shippingFee)) : '',
