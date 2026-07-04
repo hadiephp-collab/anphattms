@@ -66,6 +66,7 @@ export default function TxFormPage({ type, txId }: Props) {
     affectsBusinessResult: true,
     hopLeTax: false,
     isFixed: false,
+    reportGroup: '',
     updatePartnerDebt: false,
     branchId: '',
     note: '',
@@ -126,6 +127,7 @@ export default function TxFormPage({ type, txId }: Props) {
           affectsBusinessResult: tx.affectsBusinessResult !== false,
           hopLeTax: (tx as any).hopLeTax ?? false,
           isFixed: (tx as any).isFixed ?? false,
+          reportGroup: (tx as any).reportGroup || '',
           updatePartnerDebt: tx.partnerDebtAdjusted ?? false,
           branchId: tx.branchId ? String(tx.branchId) : '',
           note: tx.note || '',
@@ -172,6 +174,7 @@ export default function TxFormPage({ type, txId }: Props) {
         affectsBusinessResult: form.affectsBusinessResult,
         hopLeTax: !isReceipt ? form.hopLeTax : undefined,
         isFixed: !isReceipt ? form.isFixed : undefined,
+        reportGroup: !isReceipt ? (form.reportGroup || undefined) : undefined,
         updatePartnerDebt: form.partnerId ? form.updatePartnerDebt : undefined,
         groupId: form.groupId ? Number(form.groupId) : undefined,
         category: form.category || undefined,
@@ -386,6 +389,22 @@ export default function TxFormPage({ type, txId }: Props) {
                         <span className="ml-1.5 text-xs text-gray-400">(lương, thuê mặt bằng, KH tài sản...)</span>
                       </span>
                     </label>
+                  )}
+                  {!isReceipt && (
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-sm text-gray-700 w-36 flex-shrink-0">Nhóm báo cáo P&L</span>
+                      <select
+                        value={form.reportGroup as string}
+                        onChange={e => set('reportGroup', e.target.value)}
+                        className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">-- Chưa phân loại --</option>
+                        <option value="ban-hang">Chi phí bán hàng</option>
+                        <option value="quan-ly">Chi phí quản lý</option>
+                        <option value="dich-vu">Chi phí dịch vụ</option>
+                        <option value="khac">Chi phí khác</option>
+                      </select>
+                    </div>
                   )}
                   {selectedGroup && (
                     <p className="text-xs text-gray-400 pl-6">

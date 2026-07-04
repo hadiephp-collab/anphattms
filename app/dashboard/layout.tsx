@@ -136,9 +136,9 @@ const navSections: NavSection[] = [
         children: [
           { href: '/dashboard/bao-cao', label: 'Tổng Hợp', exact: true },
           { href: '/dashboard/bao-cao/ban-hang', label: 'Bán Hàng' },
-          { href: '/dashboard/bao-cao/loi-nhuan', label: 'Lợi Nhuận & Thuế', soon: true },
+          { href: '/dashboard/bao-cao/loi-nhuan', label: 'Lợi Nhuận & Thuế' },
           { href: '/dashboard/bao-cao/crm', label: 'CRM', soon: true },
-          { href: '/dashboard/bao-cao/ton-kho', label: 'Tồn Kho', soon: true },
+          { href: '/dashboard/bao-cao/ton-kho', label: 'Tồn Kho' },
         ],
       },
     ],

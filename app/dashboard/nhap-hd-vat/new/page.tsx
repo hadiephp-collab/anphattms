@@ -40,6 +40,7 @@ function NewNhapHdVatForm() {
   const [soHD, setSoHD]         = useState('');
   const [ngayHoaDon, setNgayHoaDon] = useState(todayStr());
   const [notes, setNotes]       = useState('');
+  const [invoiceType, setInvoiceType] = useState<'goods' | 'service'>('goods');
 
   // Supplier
   const [supplierId, setSupplierId]     = useState<number | null>(null);
@@ -111,6 +112,7 @@ function NewNhapHdVatForm() {
         kyHieu: kyHieu.trim(), soHD: soHD.trim(), ngayHoaDon,
         supplierId, maSoThue: maSoThue.trim() || undefined,
         purchaseOrderId: poId ?? undefined,
+        invoiceType,
         notes: notes.trim() || undefined,
         rows: rows.map(r => ({
           productId: r.productId ?? undefined,
@@ -206,6 +208,25 @@ function NewNhapHdVatForm() {
             <input value={soHD} onChange={e => setSoHD(e.target.value)} placeholder="VD: 0000089"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-gray-500">Loại hóa đơn</span>
+          <div className="flex rounded-lg border border-gray-300 overflow-hidden text-sm">
+            <button type="button"
+              onClick={() => setInvoiceType('goods')}
+              className={`px-4 py-1.5 font-medium transition-colors ${invoiceType === 'goods' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+              Hàng hóa
+            </button>
+            <button type="button"
+              onClick={() => setInvoiceType('service')}
+              className={`px-4 py-1.5 font-medium transition-colors border-l border-gray-300 ${invoiceType === 'service' ? 'bg-purple-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+              Dịch vụ
+            </button>
+          </div>
+          {invoiceType === 'service' && (
+            <span className="text-xs text-purple-600">VAT vào sẽ được tính riêng trong báo cáo</span>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-3">
