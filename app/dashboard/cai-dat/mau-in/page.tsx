@@ -95,27 +95,27 @@ function KeywordModal({ tab, onSelect, onClose }: {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 780, maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 80px rgba(0,0,0,.3)' }}>
-        <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid #e5e7eb' }}>
+      <div style={{ background: '#fff', borderRadius: 12, width: 'min(1060px, calc(100vw - 24px))', maxHeight: '88vh', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 80px rgba(0,0,0,.3)' }}>
+        <div style={{ padding: '18px 24px 12px', borderBottom: '1px solid #e5e7eb' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
             <div>
-              <div style={{ fontWeight: 700, fontSize: 15, color: '#111' }}>Danh sách từ khóa</div>
+              <div style={{ fontWeight: 700, fontSize: 16, color: '#111' }}>Danh sách từ khóa</div>
               <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>Nhấn <strong>Chọn</strong> để chèn từ khóa tại vị trí con trỏ</div>
             </div>
-            <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid #e5e7eb', background: '#f9fafb', cursor: 'pointer', fontSize: 15, color: '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+            <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 7, border: '1px solid #e5e7eb', background: '#f9fafb', cursor: 'pointer', fontSize: 16, color: '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
           </div>
           <input type="text" placeholder="Tìm kiếm từ khóa..." value={search} onChange={e => setSearch(e.target.value)} autoFocus
-            style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 7, fontSize: 13, outline: 'none' }} />
+            style={{ width: '100%', padding: '9px 14px', border: '1px solid #d1d5db', borderRadius: 7, fontSize: 13, outline: 'none' }} />
         </div>
-        <div style={{ overflowY: 'auto', padding: '12px 20px 16px', flex: 1 }}>
+        <div style={{ overflowY: 'auto', padding: '14px 24px 20px', flex: 1 }}>
           {filtered.length === 0 ? (
             <div style={{ textAlign: 'center', color: '#9ca3af', fontSize: 13, padding: '48px 0' }}>Không tìm thấy từ khóa phù hợp</div>
           ) : filtered.map(cat => (
-            <div key={cat.title} style={{ marginBottom: 18 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 7, paddingBottom: 5, borderBottom: '1px solid #f3f4f6' }}>{cat.title}</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+            <div key={cat.title} style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 8, paddingBottom: 6, borderBottom: '1px solid #f3f4f6' }}>{cat.title}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
                 {cat.vars.map(v => (
-                  <div key={v.code} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 9px', borderRadius: 6, background: '#f9fafb', border: '1px solid #f0f0f0' }}>
+                  <div key={v.code} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 10px', borderRadius: 6, background: '#f9fafb', border: '1px solid #f0f0f0' }}>
                     <div style={{ flex: 1, minWidth: 0, marginRight: 8 }}>
                       <div style={{ fontSize: 12, color: '#111', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.label}</div>
                       <div style={{ fontFamily: 'monospace', fontSize: 11, color: '#2563eb', marginTop: 1 }}>{v.code}</div>
@@ -130,9 +130,9 @@ function KeywordModal({ tab, onSelect, onClose }: {
             </div>
           ))}
         </div>
-        <div style={{ padding: '10px 20px', borderTop: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '10px 24px', borderTop: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: 11, color: '#9ca3af' }}>{filtered.reduce((s, c) => s + c.vars.length, 0)} từ khóa</span>
-          <button onClick={onClose} style={{ padding: '6px 18px', fontSize: 13, background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 7, cursor: 'pointer', color: '#374151' }}>Thoát</button>
+          <button onClick={onClose} style={{ padding: '6px 20px', fontSize: 13, background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 7, cursor: 'pointer', color: '#374151' }}>Thoát</button>
         </div>
       </div>
     </div>
