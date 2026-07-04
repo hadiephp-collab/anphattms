@@ -8,7 +8,9 @@ import {
 } from '@/lib/template-engine';
 import {
   DEFAULT_TEMPLATE_HOA_DON, DEFAULT_TEMPLATE_PHIEU_THU, DEFAULT_TEMPLATE_PHIEU_CHI,
-  KEYWORDS_HOA_DON, KEYWORDS_TX, VarCategory,
+  DEFAULT_TEMPLATE_DON_HANG_NHAP, DEFAULT_TEMPLATE_TRA_HANG_NCC, DEFAULT_TEMPLATE_VAN_DON,
+  KEYWORDS_HOA_DON, KEYWORDS_TX, KEYWORDS_DON_HANG_NHAP, KEYWORDS_TRA_HANG_NCC, KEYWORDS_VAN_DON,
+  VarCategory,
 } from '@/lib/default-templates';
 
 // ── Demo data ─────────────────────────────────────────────────────────────────
@@ -56,25 +58,101 @@ const DEMO_PHIEU_THU: TemplateVars = {
 
 const DEMO_PHIEU_CHI: TemplateVars = { ...DEMO_PHIEU_THU, tx_code: 'PC-260701-001', reason: 'Chi trả nhà cung cấp ABC', linked_order: '' };
 
-type TabKey = 'hoaDon' | 'phieuThu' | 'phieuChi';
+const DEMO_PO_ITEMS_TABLE = generateItemsTable([
+  { stt: 1, name: 'Điện thoại Xiaomi 14', code: 'SP010', qty: 5, unit: 'Cái', price: 3_500_000, discountPct: 0, total: 17_500_000 },
+  { stt: 2, name: 'Tai nghe Bluetooth', code: 'SP011', qty: 10, unit: 'Cái', price: 450_000, discountPct: 0, total: 4_500_000 },
+]);
+
+const DEMO_DON_HANG_NHAP: TemplateVars = {
+  store_name: 'An Phát Technology', store_address: '123 Đường Nguyễn Trãi, Q.1', store_phone: '0901 234 567',
+  store_email: 'info@anphat.vn', store_tax_code: '0123456789',
+  print_footer: 'Cảm ơn đã hợp tác!', print_date: '01/07/2026 10:00',
+  po_code: 'PN-2607-001', po_date: '01/07/2026', po_status: 'Đã nhận hàng',
+  supplier_name: 'Công ty TNHH ABC', supplier_code: 'NCC-001',
+  supplier_phone: '028 1234 5678', supplier_address: '456 Đường CN, Bình Dương',
+  currency: 'VND', exchange_rate: '', expected_date: '05/07/2026', received_date: '03/07/2026',
+  staff_name: 'Trần Văn C', branch_name: 'Chi nhánh Quận 1', notes: 'Kiểm tra hàng trước khi nhận',
+  payment_method: 'Chuyển khoản (22.000.000đ)',
+  subtotal_foreign: '', subtotal_vnd: '22.000.000đ', discount_amount: '', shipping_fee: '500.000đ',
+  total_amount_vnd: '22.500.000đ', total_text: numberToWords(22_500_000),
+  paid_amount: '22.500.000đ', debt_amount: '',
+  items: [
+    { line_stt: '1', line_name: 'Điện thoại Xiaomi 14', line_code: 'SP010', line_qty: '5', line_unit: 'Cái', line_price_vnd: '3.500.000đ', line_total_vnd: '17.500.000đ', line_price_foreign: '', line_total_foreign: '' },
+    { line_stt: '2', line_name: 'Tai nghe Bluetooth', line_code: 'SP011', line_qty: '10', line_unit: 'Cái', line_price_vnd: '450.000đ', line_total_vnd: '4.500.000đ', line_price_foreign: '', line_total_foreign: '' },
+  ],
+  items_table: DEMO_PO_ITEMS_TABLE,
+};
+
+const DEMO_TRA_HANG_ITEMS_TABLE = generateItemsTable([
+  { stt: 1, name: 'Điện thoại Xiaomi 14 (lỗi màn hình)', code: 'SP010', qty: 2, unit: 'Cái', price: 3_500_000, discountPct: 0, total: 7_000_000 },
+]);
+
+const DEMO_TRA_HANG_NCC: TemplateVars = {
+  store_name: 'An Phát Technology', store_address: '123 Đường Nguyễn Trãi, Q.1', store_phone: '0901 234 567',
+  store_email: 'info@anphat.vn', store_tax_code: '0123456789',
+  print_footer: '', print_date: '01/07/2026 14:30',
+  return_code: 'TN-2607-001', return_date: '01/07/2026', return_status: 'Đã xác nhận',
+  supplier_name: 'Công ty TNHH ABC', supplier_code: 'NCC-001',
+  po_code: 'PN-2607-001', return_reason: 'Hàng Lỗi',
+  notes: 'Hàng lỗi màn hình, trả lại toàn bộ lô', supplier_notes: 'Đề nghị đổi hàng mới',
+  staff_name: 'Trần Văn C', branch_name: 'Chi nhánh Quận 1',
+  total_amount: '7.000.000đ', total_text: numberToWords(7_000_000),
+  refunded_amount: '7.000.000đ', refund_status: 'Đã hoàn đủ',
+  items: [
+    { line_stt: '1', line_name: 'Điện thoại Xiaomi 14 (lỗi màn hình)', line_code: 'SP010', line_qty: '2', line_unit: 'Cái', line_price: '3.500.000đ', line_total: '7.000.000đ' },
+  ],
+  items_table: DEMO_TRA_HANG_ITEMS_TABLE,
+};
+
+const DEMO_VAN_DON: TemplateVars = {
+  store_name: 'An Phát Technology', store_address: '123 Đường Nguyễn Trãi, Q.1', store_phone: '0901 234 567',
+  store_email: 'info@anphat.vn', store_tax_code: '0123456789',
+  print_footer: '', print_date: '01/07/2026 09:00',
+  shipment_code: 'VD-260701-001', tracking_code: 'GHN123456789', shipment_date: '01/07/2026',
+  carrier_name: 'Giao Hàng Nhanh', shipment_type: 'COD (Thu hộ tiền)',
+  order_code: 'DH-260701-001', scheduled_date: '03/07/2026', delivered_date: '',
+  shipment_status: 'Đang vận chuyển', notes: 'Gọi trước khi giao',
+  receiver_name: 'Nguyễn Văn A', receiver_phone: '0987 654 321',
+  receiver_address: '456 Đường Lê Lợi, Quận 1, TP.HCM',
+  shipping_fee: '35.000đ', cod_amount: '13.900.000đ',
+};
+
+type TabKey = 'hoaDon' | 'phieuThu' | 'phieuChi' | 'donHangNhap' | 'traHangNcc' | 'vanDon';
 type EditorMode = 'visual' | 'html';
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'hoaDon', label: 'Hóa Đơn Bán Hàng' },
   { key: 'phieuThu', label: 'Phiếu Thu' },
   { key: 'phieuChi', label: 'Phiếu Chi' },
+  { key: 'donHangNhap', label: 'Đơn Hàng Nhập' },
+  { key: 'traHangNcc', label: 'Trả Hàng NCC' },
+  { key: 'vanDon', label: 'Vận Đơn' },
 ];
 
 const DEFAULT_TEMPLATES: Record<TabKey, string> = {
   hoaDon: DEFAULT_TEMPLATE_HOA_DON,
   phieuThu: DEFAULT_TEMPLATE_PHIEU_THU,
   phieuChi: DEFAULT_TEMPLATE_PHIEU_CHI,
+  donHangNhap: DEFAULT_TEMPLATE_DON_HANG_NHAP,
+  traHangNcc: DEFAULT_TEMPLATE_TRA_HANG_NCC,
+  vanDon: DEFAULT_TEMPLATE_VAN_DON,
 };
+
+function getKeywords(tab: TabKey): VarCategory[] {
+  if (tab === 'hoaDon') return KEYWORDS_HOA_DON;
+  if (tab === 'donHangNhap') return KEYWORDS_DON_HANG_NHAP;
+  if (tab === 'traHangNcc') return KEYWORDS_TRA_HANG_NCC;
+  if (tab === 'vanDon') return KEYWORDS_VAN_DON;
+  return KEYWORDS_TX;
+}
 
 function getDemoVars(tab: TabKey): TemplateVars {
   if (tab === 'hoaDon') return DEMO_HOA_DON;
   if (tab === 'phieuThu') return DEMO_PHIEU_THU;
-  return DEMO_PHIEU_CHI;
+  if (tab === 'phieuChi') return DEMO_PHIEU_CHI;
+  if (tab === 'donHangNhap') return DEMO_DON_HANG_NHAP;
+  if (tab === 'traHangNcc') return DEMO_TRA_HANG_NCC;
+  return DEMO_VAN_DON;
 }
 
 // ── Keyword Picker Modal ──────────────────────────────────────────────────────
@@ -83,7 +161,7 @@ function KeywordModal({ tab, onSelect, onClose }: {
   tab: TabKey; onSelect: (code: string) => void; onClose: () => void;
 }) {
   const [search, setSearch] = useState('');
-  const categories = tab === 'hoaDon' ? KEYWORDS_HOA_DON : KEYWORDS_TX;
+  const categories = getKeywords(tab);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return categories;
@@ -169,8 +247,14 @@ export default function MauInPage() {
     hoaDon: DEFAULT_TEMPLATE_HOA_DON,
     phieuThu: DEFAULT_TEMPLATE_PHIEU_THU,
     phieuChi: DEFAULT_TEMPLATE_PHIEU_CHI,
+    donHangNhap: DEFAULT_TEMPLATE_DON_HANG_NHAP,
+    traHangNcc: DEFAULT_TEMPLATE_TRA_HANG_NCC,
+    vanDon: DEFAULT_TEMPLATE_VAN_DON,
   });
-  const [paperSizes, setPaperSizes] = useState<Record<TabKey, string>>({ hoaDon: 'A4', phieuThu: 'A4', phieuChi: 'A4' });
+  const [paperSizes, setPaperSizes] = useState<Record<TabKey, string>>({
+    hoaDon: 'A4', phieuThu: 'A4', phieuChi: 'A4',
+    donHangNhap: 'A4', traHangNcc: 'A4', vanDon: 'A4',
+  });
   const [showKeywords, setShowKeywords] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -187,8 +271,14 @@ export default function MauInPage() {
         hoaDon: s.templateHoaDon || DEFAULT_TEMPLATE_HOA_DON,
         phieuThu: s.templatePhieuThu || DEFAULT_TEMPLATE_PHIEU_THU,
         phieuChi: s.templatePhieuChi || DEFAULT_TEMPLATE_PHIEU_CHI,
+        donHangNhap: s.templateDonHangNhap || DEFAULT_TEMPLATE_DON_HANG_NHAP,
+        traHangNcc: s.templateTraHangNcc || DEFAULT_TEMPLATE_TRA_HANG_NCC,
+        vanDon: s.templateVanDon || DEFAULT_TEMPLATE_VAN_DON,
       });
-      setPaperSizes({ hoaDon: s.paperSizeHoaDon || 'A4', phieuThu: s.paperSizePhieuThu || 'A4', phieuChi: s.paperSizePhieuChi || 'A4' });
+      setPaperSizes({
+        hoaDon: s.paperSizeHoaDon || 'A4', phieuThu: s.paperSizePhieuThu || 'A4', phieuChi: s.paperSizePhieuChi || 'A4',
+        donHangNhap: s.paperSizeDonHangNhap || 'A4', traHangNcc: s.paperSizeTraHangNcc || 'A4', vanDon: s.paperSizeVanDon || 'A4',
+      });
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
@@ -256,9 +346,15 @@ export default function MauInPage() {
         templateHoaDon: toSave.hoaDon,
         templatePhieuThu: toSave.phieuThu,
         templatePhieuChi: toSave.phieuChi,
+        templateDonHangNhap: toSave.donHangNhap,
+        templateTraHangNcc: toSave.traHangNcc,
+        templateVanDon: toSave.vanDon,
         paperSizeHoaDon: paperSizes.hoaDon,
         paperSizePhieuThu: paperSizes.phieuThu,
         paperSizePhieuChi: paperSizes.phieuChi,
+        paperSizeDonHangNhap: paperSizes.donHangNhap,
+        paperSizeTraHangNcc: paperSizes.traHangNcc,
+        paperSizeVanDon: paperSizes.vanDon,
       });
       showToast('Đã lưu mẫu in thành công', true);
     } catch {

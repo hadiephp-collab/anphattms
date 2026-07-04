@@ -458,7 +458,7 @@ export default function PurchaseOrderDetailPage() {
     setActionLoading('');
   }
 
-  function handlePrint() { window.print(); }
+  function handlePrint() { window.open(`/print/don-hang-nhap/${po!.id}`, '_blank'); }
 
   if (loading) {
     return (

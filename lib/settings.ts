@@ -35,6 +35,12 @@ export interface StoreSetting {
   paperSizeHoaDon: string | null;
   paperSizePhieuThu: string | null;
   paperSizePhieuChi: string | null;
+  templateDonHangNhap: string | null;
+  templateTraHangNcc: string | null;
+  templateVanDon: string | null;
+  paperSizeDonHangNhap: string | null;
+  paperSizeTraHangNcc: string | null;
+  paperSizeVanDon: string | null;
   updatedAt: string;
 }
 
