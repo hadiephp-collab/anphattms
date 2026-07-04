@@ -36,6 +36,7 @@ export const DEFAULT_TEMPLATE_HOA_DON = `<div style="display:flex;justify-conten
 <div style="font-size:11px;margin-bottom:8px;color:#444">Bằng chữ: <em>{total_text}</em></div>
 {#if payment_method}<div style="font-size:12px;margin-bottom:8px">PTTT: {payment_method}</div>{/if}
 {#if notes}<div style="margin-bottom:16px;padding:6px 10px;background:#fffbeb;border-left:3px solid #f59e0b;font-size:11px"><strong>Ghi chú:</strong> {notes}</div>{/if}
+{#if payment_qr}<div style="margin:16px 0;display:flex;align-items:flex-start;gap:16px"><div>{payment_qr}</div><div style="font-size:11px;color:#555;padding-top:4px"><div style="font-weight:600;margin-bottom:4px">Quét QR để thanh toán</div><div style="margin-top:2px;color:#888">Chuyển khoản ngân hàng</div></div></div>{/if}
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:28px;text-align:center;font-size:12px">
   <div>
     <div style="font-weight:600;margin-bottom:4px">Người mua hàng</div>
