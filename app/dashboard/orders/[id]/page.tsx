@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ordersApi } from '@/lib/orders';
 import { getUser } from '@/lib/auth';
+import { cancelReturnReasonsApi } from '@/lib/cancel-return-reasons';
 
 interface OrderDetail {
   id: number; code: string; date: string; deliveryDate?: string;
@@ -118,6 +119,7 @@ export default function OrderDetailPage() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason]       = useState('');
   const [cancelSaving, setCancelSaving]       = useState(false);
+  const [cancelReasonsList, setCancelReasonsList] = useState<string[]>([]);
 
   async function load() {
     setLoading(true);
@@ -126,6 +128,12 @@ export default function OrderDetailPage() {
     setLoading(false);
   }
   useEffect(() => { load(); }, [id]);
+
+  useEffect(() => {
+    cancelReturnReasonsApi.getAll({ type: 'cancel', active: true })
+      .then(list => setCancelReasonsList(list.map(r => r.name)))
+      .catch(() => {});
+  }, []);
 
   async function handleAddPayment() {
     if (!payAmount || parseVN(payAmount) <= 0) return;
@@ -821,9 +829,19 @@ export default function OrderDetailPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-5">
             <h3 className="font-semibold text-gray-900 mb-1">Xác nhận hủy đơn hàng</h3>
-            <p className="text-sm text-gray-500 mb-4">Hành động này không thể hoàn tác. Tồn kho sẽ được hoàn lại nếu đơn đã hoàn thành.</p>
+            <p className="text-sm text-gray-500 mb-3">Hành động này không thể hoàn tác. Tồn kho sẽ được hoàn lại nếu đơn đã hoàn thành.</p>
+            {cancelReasonsList.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {cancelReasonsList.map(r => (
+                  <button key={r} type="button" onClick={() => setCancelReason(r)}
+                    className={`px-2.5 py-1 text-xs rounded-lg border transition ${cancelReason === r ? 'bg-red-100 border-red-400 text-red-700 font-medium' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                    {r}
+                  </button>
+                ))}
+              </div>
+            )}
             <textarea value={cancelReason} onChange={e => setCancelReason(e.target.value)}
-              rows={3} placeholder="Lý do hủy (tuỳ chọn): khách đổi ý, hết hàng..."
+              rows={2} placeholder="Hoặc nhập lý do khác..."
               className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none resize-none mb-4" />
             <div className="flex justify-end gap-3">
               <button onClick={() => { setShowCancelModal(false); setCancelReason(''); }} disabled={cancelSaving}

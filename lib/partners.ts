@@ -29,4 +29,5 @@ export const partnersApi = {
   create: (data: object) => authFetch('/partners', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: number, data: object) => authFetch(`/partners/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   remove: (id: number) => authFetch(`/partners/${id}`, { method: 'DELETE' }),
+  import: (rows: object[]) => authFetch('/partners/import', { method: 'POST', body: JSON.stringify({ rows }) }),
 };

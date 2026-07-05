@@ -145,7 +145,6 @@ const groups: SettingGroup[] = [
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
           </svg>
         ),
-        soon: true,
       },
       {
         href: '/dashboard/cai-dat/ly-do-huy-tra',
@@ -156,7 +155,6 @@ const groups: SettingGroup[] = [
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
           </svg>
         ),
-        soon: true,
       },
     ],
   },
@@ -174,6 +172,16 @@ const groups: SettingGroup[] = [
         ),
       },
       {
+        href: '/dashboard/cai-dat/backup',
+        label: 'Backup & Restore',
+        description: 'Sao lưu dữ liệu định kỳ, xem lịch sử và hướng dẫn khôi phục',
+        icon: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M5 12H3l9-9 9 9h-2M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6" />
+          </svg>
+        ),
+      },
+      {
         href: '/dashboard/cai-dat/nhap-xuat-du-lieu',
         label: 'Nhập / Xuất Dữ Liệu',
         description: 'Import sản phẩm, khách hàng từ Excel; export backup dữ liệu',
@@ -182,18 +190,16 @@ const groups: SettingGroup[] = [
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
           </svg>
         ),
-        soon: true,
       },
       {
-        href: '/dashboard/cai-dat/hoa-don-dien-tu',
-        label: 'Hóa Đơn Điện Tử',
-        description: 'Tích hợp phát hành HĐĐT qua MISA, VNPT, Viettel...',
+        href: '/dashboard/cai-dat/telegram',
+        label: 'Telegram Bot',
+        description: 'Nhận thông báo đơn hàng, tồn kho thấp và báo cáo ngày qua Telegram',
         icon: (
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
           </svg>
         ),
-        soon: true,
       },
     ],
   },

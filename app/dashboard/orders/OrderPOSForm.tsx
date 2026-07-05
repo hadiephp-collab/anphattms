@@ -158,6 +158,10 @@ export default function OrderPOSForm({ mode = 'create', orderId }: { mode?: 'cre
   const [branchId, setBranchId] = useState<number | undefined>(undefined);
   const [availableBranches, setAvailableBranches] = useState<Branch[]>([]);
 
+  // Source
+  const [sourceId, setSourceId] = useState<number | undefined>(undefined);
+  const [availableSources, setAvailableSources] = useState<{ id: number; name: string; color: string | null }[]>([]);
+
   // Tag chip input
   const [tagInput, setTagInput] = useState('');
 
@@ -202,6 +206,10 @@ export default function OrderPOSForm({ mode = 'create', orderId }: { mode?: 'cre
         setAvailableBranches(all.filter(b => userBranchIds.includes(b.id)));
       }).catch(() => {});
     }
+    // Load sources
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/order-sources?active=true`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('anphat_token')}` },
+    }).then(r => r.json()).then((data: any[]) => setAvailableSources(data)).catch(() => {});
   }, []);
 
   // Load order data khi mode='edit'
@@ -411,6 +419,7 @@ export default function OrderPOSForm({ mode = 'create', orderId }: { mode?: 'cre
     const payload = {
       customerId:     (tab.customerId && tab.customerId > 0) ? tab.customerId : undefined,
       branchId:       branchId ?? undefined,
+      sourceId:       sourceId ?? undefined,
       assignedToId:   tab.assignedToId,
       date:           tab.date || undefined,
       deliveryDate:   tab.deliveryDate || undefined,
@@ -778,6 +787,18 @@ export default function OrderPOSForm({ mode = 'create', orderId }: { mode?: 'cre
                     <span className="text-xs text-gray-400 flex-1">Tất cả chi nhánh</span>
                   )}
                 </div>
+                {availableSources.length > 0 && (
+                  <div className="px-3 py-2">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[11px] text-gray-400 w-16 flex-shrink-0">Nguồn</span>
+                    </div>
+                    <select value={sourceId ?? ''} onChange={e => setSourceId(e.target.value ? Number(e.target.value) : undefined)}
+                      className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none bg-white focus:ring-1 focus:ring-blue-200">
+                      <option value="">— Không chọn —</option>
+                      {availableSources.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </div>
+                )}
                 <div className="px-3 py-2">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-[11px] text-gray-400 w-16 flex-shrink-0">Bán bởi <span className="text-red-400">*</span></span>

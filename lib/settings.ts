@@ -41,6 +41,15 @@ export interface StoreSetting {
   paperSizeDonHangNhap: string | null;
   paperSizeTraHangNcc: string | null;
   paperSizeVanDon: string | null;
+  // Telegram Bot
+  telegramEnabled: boolean;
+  telegramBotToken: string | null;
+  telegramChatId: string | null;
+  telegramNotifyNewOrder: boolean;
+  telegramNotifyCancelOrder: boolean;
+  telegramNotifyLowStock: boolean;
+  telegramNotifyDailyReport: boolean;
+  telegramLowStockThreshold: number;
   updatedAt: string;
 }
 

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { returnsApi } from '@/lib/returns';
 import { getToken } from '@/lib/auth';
+import { cancelReturnReasonsApi } from '@/lib/cancel-return-reasons';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 async function apiFetch(path: string) {
@@ -48,10 +49,7 @@ interface ProdResult {
   stockQuantity?: number; taxPercent?: number; barcode?: string;
 }
 
-const REASONS = [
-  'Sản phẩm bị lỗi / hỏng', 'Không đúng với mô tả', 'Sản phẩm không đúng size / màu',
-  'Khách hàng đổi ý', 'Giao nhầm sản phẩm', 'Hàng bị thiếu phụ kiện', 'Khác',
-];
+// REASONS moved to DB — loaded via API, fallback to empty
 const REFUND_METHODS = [
   { value: 'cash', label: 'Tiền mặt' },
   { value: 'bank_transfer', label: 'Chuyển khoản' },
@@ -239,6 +237,7 @@ export default function NewReturnPage() {
   // Branch state
   const [branches, setBranches]           = useState<{id: number; name: string}[]>([]);
   const [returnBranchId, setReturnBranchId] = useState<number | ''>('');
+  const [returnReasonsList, setReturnReasonsList] = useState<string[]>([]);
 
   // Exchange (đổi hàng) state
   const [exchangeLines, setExchangeLines] = useState<ExchangeLine[]>([]);
@@ -297,6 +296,11 @@ export default function NewReturnPage() {
         setBranches(list);
       })
       .catch(() => setBranches([]));
+
+    // Return reasons from DB
+    cancelReturnReasonsApi.getAll({ type: 'return', active: true })
+      .then(list => setReturnReasonsList(list.map(r => r.name)))
+      .catch(() => setReturnReasonsList(['Sản phẩm bị lỗi / hỏng', 'Khách hàng đổi ý', 'Khác']));
 
     // Initial exchange product suggestions (latest 10)
     apiFetch('/products?limit=10&sortBy=createdAt&sortOrder=DESC')
@@ -747,7 +751,7 @@ export default function NewReturnPage() {
                         <select value={reason} onChange={e => setReason(e.target.value)}
                           className="w-full text-sm border border-gray-200 rounded-lg px-2.5 py-2 focus:outline-none focus:border-blue-400 bg-white">
                           <option value="">Chọn lý do...</option>
-                          {REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+                          {returnReasonsList.map(r => <option key={r} value={r}>{r}</option>)}
                         </select>
                       </div>
                     </div>
