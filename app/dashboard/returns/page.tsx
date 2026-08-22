@@ -217,7 +217,7 @@ export default function ReturnsPage() {
       if (fr) params.reason = fr;
       if (ff) params.refundMethod = ff;
       if (df) params.dateFrom = df;
-      if (dt) { const d = new Date(dt); d.setDate(d.getDate()+1); params.dateTo = d.toISOString().slice(0,10); }
+      if (dt) { const [y,mo,dy] = dt.split('-').map(Number); params.dateTo = localDateStr(new Date(y, mo-1, dy+1)); }
       const [res, st2] = await Promise.all([returnsApi.getAll(params), returnsApi.getStats()]);
       setRecords(res.items); setTotal(res.total); setTotalPages(res.totalPages); setStats(st2);
       setLoadError('');
@@ -276,7 +276,7 @@ export default function ReturnsPage() {
       if (filterReason) params.reason = filterReason;
       if (filterRefund) params.refundMethod = filterRefund;
       if (filterFrom)   params.dateFrom = filterFrom;
-      if (filterTo)     { const d = new Date(filterTo); d.setDate(d.getDate()+1); params.dateTo = d.toISOString().slice(0,10); }
+      if (filterTo)     { const [y,mo,dy] = filterTo.split('-').map(Number); params.dateTo = localDateStr(new Date(y, mo-1, dy+1)); }
       const res = await returnsApi.getAll(params);
       const headers = ['Mã phiếu','Ngày tạo','Đơn gốc','Khách hàng','SĐT','Sản phẩm','Lý do trả','Tiền hoàn','PT hoàn','Trạng thái','Người xử lý','Ngày xử lý','Ghi chú'];
       const rows = (res.items as ReturnRecord[]).map(r => [
@@ -288,7 +288,7 @@ export default function ReturnsPage() {
       const csv = [headers,...rows].map(row=>row.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
       const blob = new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href=url; a.download=`tra-hang-${new Date().toISOString().slice(0,10)}.csv`;
+      const a = document.createElement('a'); a.href=url; a.download=`tra-hang-${localDateStr()}.csv`;
       a.click(); URL.revokeObjectURL(url);
     } catch {/**/ }
     setExporting(false);

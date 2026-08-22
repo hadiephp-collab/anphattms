@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { employeesApi } from '@/lib/employees';
 import { branchesApi, Branch } from '@/lib/branches';
+import { localDateStr } from '@/lib/utils';
 
 interface Employee {
   id: number; code: string; fullName: string; phone?: string; email?: string;
@@ -190,7 +191,7 @@ export default function EmployeesPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `nhan-vien-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `nhan-vien-${localDateStr()}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

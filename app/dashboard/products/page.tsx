@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { productsApi } from '@/lib/products';
 import ImportModal from './ImportModal';
+import { localDateStr } from '@/lib/utils';
 
 interface Product {
   id: number; code: string; name: string; category?: string; brand?: string; unit?: string;
@@ -108,7 +109,7 @@ export default function ProductsPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `san-pham-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.download = `san-pham-${localDateStr()}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } finally {

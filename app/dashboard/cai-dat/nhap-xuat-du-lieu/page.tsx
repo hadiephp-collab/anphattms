@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import { productsApi } from '@/lib/products';
 import { partnersApi } from '@/lib/partners';
+import { localDateStr } from '@/lib/utils';
 
 type Tab = 'import' | 'export';
 type ImportType = 'products' | 'partners';
@@ -159,7 +160,7 @@ export default function NhapXuatDuLieuPage() {
         }));
         const ws = XLSX.utils.json_to_sheet(rows);
         XLSX.utils.book_append_sheet(wb, ws, 'Sản Phẩm');
-        XLSX.writeFile(wb, `export_san-pham_${new Date().toISOString().slice(0,10)}.xlsx`);
+        XLSX.writeFile(wb, `export_san-pham_${localDateStr()}.xlsx`);
 
       } else if (type === 'partners') {
         const data = await partnersApi.getAll({ limit: '10000' });
@@ -178,7 +179,7 @@ export default function NhapXuatDuLieuPage() {
         }));
         const ws = XLSX.utils.json_to_sheet(rows);
         XLSX.utils.book_append_sheet(wb, ws, 'Đối Tác');
-        XLSX.writeFile(wb, `export_doi-tac_${new Date().toISOString().slice(0,10)}.xlsx`);
+        XLSX.writeFile(wb, `export_doi-tac_${localDateStr()}.xlsx`);
 
       } else if (type === 'orders') {
         const data = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/orders?limit=10000`, {
@@ -198,7 +199,7 @@ export default function NhapXuatDuLieuPage() {
         }));
         const ws = XLSX.utils.json_to_sheet(rows);
         XLSX.utils.book_append_sheet(wb, ws, 'Đơn Hàng');
-        XLSX.writeFile(wb, `export_don-hang_${new Date().toISOString().slice(0,10)}.xlsx`);
+        XLSX.writeFile(wb, `export_don-hang_${localDateStr()}.xlsx`);
 
       } else if (type === 'transactions') {
         const data = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/transactions?limit=10000`, {
@@ -216,7 +217,7 @@ export default function NhapXuatDuLieuPage() {
         }));
         const ws = XLSX.utils.json_to_sheet(rows);
         XLSX.utils.book_append_sheet(wb, ws, 'Thu Chi');
-        XLSX.writeFile(wb, `export_thu-chi_${new Date().toISOString().slice(0,10)}.xlsx`);
+        XLSX.writeFile(wb, `export_thu-chi_${localDateStr()}.xlsx`);
       }
 
       showToast('Xuất file thành công');

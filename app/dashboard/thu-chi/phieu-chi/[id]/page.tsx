@@ -44,7 +44,8 @@ function fmtDate(s: string | null) {
 }
 function toInputDate(s: string | null) {
   if (!s) return '';
-  return new Date(s).toISOString().slice(0, 10);
+  const d = new Date(s);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
 export default function PhieuChiDetailPage() {

@@ -197,7 +197,7 @@ export default function StockCountsPage() {
     const ws = XLSX.utils.aoa_to_sheet([header, ...data]);
     ws['!cols'] = header.map((h, i) => ({ wch: [12, 14, 8, 8, 6, 14, 14, 18, 18, 16, 16, 24][i] }));
     XLSX.utils.book_append_sheet(wb, ws, 'Kiểm hàng');
-    XLSX.writeFile(wb, `kiem-hang-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.writeFile(wb, `kiem-hang-${localDateStr()}.xlsx`);
   }
 
   /* ── download template ── */

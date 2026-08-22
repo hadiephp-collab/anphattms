@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { transactionsApi, branchesApi, partnersApi, PM_LABEL, transactionGroupsApi } from '@/lib/transactions';
-import { fmtMoney, fmtDate, getPresetDates } from '@/lib/utils';
+import { fmtMoney, fmtDate, getPresetDates, localDateStr } from '@/lib/utils';
 import ColManagerModal from '@/components/ColManagerModal';
 
 interface Tx {
@@ -349,7 +349,7 @@ export default function PhieuChiPage() {
       const blob = new Blob([BOM + csvRows], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = `phieu-chi-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.href = url; a.download = `phieu-chi-${localDateStr()}.csv`;
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch {}
