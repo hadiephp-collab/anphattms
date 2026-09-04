@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { isLoggedIn, getUser, clearAuth } from '@/lib/auth';
 import { capitalApi } from '@/lib/capital';
 
-interface NavChild { href: string; label: string; exact?: boolean; soon?: boolean; }
+interface NavChild { href: string; label: string; exact?: boolean; soon?: boolean; hidden?: boolean; }
 interface NavItem {
   href: string; label: string; exact: boolean; soon?: boolean;
   icon: React.ReactNode;
@@ -110,10 +110,10 @@ const navSections: NavSection[] = [
         children: [
           { href: '/dashboard/xuat-hd-vat',  label: 'Xuất HĐ VAT', exact: false },
           { href: '/dashboard/nhap-hd-vat',  label: 'Nhập HĐ VAT', exact: false },
-          { href: '/dashboard/cai-dat/chot-so', label: 'Chốt Sổ & Khóa Kỳ', exact: false },
-          { href: '/dashboard/ho-tro-ke-toan-thue', label: 'Hỗ Trợ Kế Toán Thuế', exact: false },
+          { href: '/dashboard/cai-dat/chot-so', label: 'Chốt Sổ & Khóa Kỳ', exact: false, hidden: true },
+          { href: '/dashboard/ho-tro-ke-toan-thue', label: 'Hỗ Trợ Kế Toán Thuế', exact: false, hidden: true },
           { href: '/dashboard/ton-kho-hd',    label: 'Tồn Kho HĐ (VAT)', exact: false },
-          { href: '/dashboard/bao-cao-vat',   label: 'Báo Cáo Thuế VAT', exact: false },
+          { href: '/dashboard/bao-cao-vat',   label: 'Báo Cáo Thuế VAT', exact: false, hidden: true },
           { href: '/dashboard/ke-toan/von-breakeven', label: 'Vốn & BreakEven' },
         ],
       },
@@ -247,7 +247,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       </Link>
                       {expanded && item.children && (
                         <div className="ml-7 mt-0.5 mb-1 space-y-0.5 border-l border-white/10 pl-3">
-                          {item.children.map((child) => {
+                          {item.children.filter(c => !c.hidden).map((child) => {
                             const childActive = child.exact ? pathname === child.href : pathname.startsWith(child.href);
                             return (
                               <Link key={child.href} href={child.href}
