@@ -1,4 +1,4 @@
-const BASE = 'http://localhost:3001/price-lists';
+const BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001') + '/price-lists';
 
 function headers() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('anphat_token') : null;
