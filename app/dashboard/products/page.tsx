@@ -61,7 +61,7 @@ const DEFAULT_VISIBLE = new Set([
   'costPriceCny', 'costPrice', 'stock', 'priority', 'status',
 ]);
 
-const STORAGE_KEY = 'products_col_order_v7';
+const STORAGE_KEY = 'products_col_order_v8';
 
 // Các cột text — hiện toggle kiểu hiển thị trong Column Manager
 const TEXT_DISPLAY_COLS = new Set([
@@ -220,16 +220,11 @@ export default function ProductsPage() {
     if (!editingCell) return;
     const { id, field, value } = editingCell;
     setEditingCell(null);
-    const token = localStorage.getItem('anphat_token');
     const parsed = NUMERIC_EDIT_FIELDS.has(field)
       ? (value.trim() === '' ? null : parseFloat(value.replace(/,/g, '')))
       : (value?.trim() || null);
     try {
-      await fetch(`http://localhost:3001/products/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ [field]: parsed }),
-      });
+      await productsApi.update(id, { [field]: parsed });
       setProducts((prev) => prev.map((p) =>
         p.id === id ? { ...p, [field]: parsed } as Product : p
       ));
@@ -460,13 +455,8 @@ export default function ProductsPage() {
   }
 
   async function setPriority(productId: number, value: number | null) {
-    const token = localStorage.getItem('anphat_token');
     try {
-      await fetch(`http://localhost:3001/products/${productId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ priority: value }),
-      });
+      await productsApi.update(productId, { priority: value });
       setProducts((prev) => prev.map((p) => p.id === productId ? { ...p, priority: value } as Product : p));
     } catch { /* silent */ }
   }
@@ -716,7 +706,7 @@ export default function ProductsPage() {
                     const left = stickyLeft[col.key];
                     if (left === undefined) return cell;
                     const orig = (cell as React.ReactElement<React.HTMLAttributes<HTMLElement>>).props.style || {};
-                    return React.cloneElement(cell as React.ReactElement<React.HTMLAttributes<HTMLElement>>, { style: { ...orig, position: 'sticky', left, zIndex: 11, background: 'rgb(249 250 251)', boxShadow: '2px 0 4px -2px rgba(0,0,0,0.08)' } });
+                    return React.cloneElement(cell as React.ReactElement<React.HTMLAttributes<HTMLElement>>, { style: { ...orig, position: 'sticky', left, zIndex: 11, background: 'rgb(249 250 251)', boxShadow: '2px 0 4px -2px rgba(0,0,0,0.08)', minWidth: STICKY_WIDTHS[col.key] ?? 130, width: STICKY_WIDTHS[col.key] ?? 130 } });
                   })}
                 </tr>
               </thead>
@@ -753,7 +743,7 @@ export default function ProductsPage() {
                       const left = stickyLeft[col.key];
                       if (left === undefined) return cell;
                       const orig = (cell as React.ReactElement<React.HTMLAttributes<HTMLElement>>).props.style || {};
-                      return React.cloneElement(cell as React.ReactElement<React.HTMLAttributes<HTMLElement>>, { style: { ...orig, position: 'sticky', left, zIndex: 9, background: selectedIds.has(p.id) ? '#eff6ff' : 'white', boxShadow: '2px 0 4px -2px rgba(0,0,0,0.06)' } });
+                      return React.cloneElement(cell as React.ReactElement<React.HTMLAttributes<HTMLElement>>, { style: { ...orig, position: 'sticky', left, zIndex: 9, background: selectedIds.has(p.id) ? '#eff6ff' : 'white', boxShadow: '2px 0 4px -2px rgba(0,0,0,0.06)', minWidth: STICKY_WIDTHS[col.key] ?? 130, width: STICKY_WIDTHS[col.key] ?? 130, overflow: 'hidden' } });
                     })}
                   </tr>
                 ))}
