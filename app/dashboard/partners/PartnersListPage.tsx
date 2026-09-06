@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
@@ -445,31 +445,31 @@ export default function PartnersListPage({ fixedTypeGroup }: { fixedTypeGroup?: 
   const fmt = (n: number) => n.toLocaleString('vi-VN') + 'đ';
 
   // KPI cards — mỗi trang chỉ hiện số liệu liên quan
-  type KpiCard = { label: string; value: string | number; sub?: string; gradient: string; shadow: string; icon: React.ReactNode };
+  type KpiCard = { label: string; value: string | number; sub?: string; iconColor: string; numColor: string; icon: React.ReactNode };
   const kpiCards: KpiCard[] = fixedTypeGroup === 'customer' ? [
-    { label: 'Tổng khách hàng', value: stats.customers, gradient: 'from-blue-500 to-blue-700', shadow: 'shadow-blue-200',
+    { label: 'Tổng khách hàng', value: stats.customers, iconColor: 'text-blue-400', numColor: 'text-blue-600',
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /> },
-    { label: 'Hạng VIP', value: stats.vip, gradient: 'from-amber-400 to-orange-500', shadow: 'shadow-amber-200',
+    { label: 'Hạng VIP', value: stats.vip, iconColor: 'text-amber-400', numColor: 'text-amber-600',
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /> },
-    { label: 'Khách có công nợ', value: stats.customersWithDebt, sub: `/ ${stats.customers} khách`, gradient: 'from-rose-500 to-rose-700', shadow: 'shadow-rose-200',
+    { label: 'Khách có công nợ', value: stats.customersWithDebt, sub: `/ ${stats.customers} khách`, iconColor: 'text-rose-400', numColor: 'text-rose-600',
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /> },
-    { label: 'Tổng công nợ KH', value: fmt(stats.totalCustomerDebt), gradient: 'from-red-600 to-red-800', shadow: 'shadow-red-200',
+    { label: 'Tổng công nợ KH', value: fmt(stats.totalCustomerDebt), iconColor: 'text-red-400', numColor: 'text-red-600',
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" /> },
   ] : fixedTypeGroup === 'supplier' ? [
-    { label: 'Tổng nhà cung cấp', value: stats.suppliers, gradient: 'from-violet-500 to-violet-700', shadow: 'shadow-violet-200',
+    { label: 'Tổng nhà cung cấp', value: stats.suppliers, iconColor: 'text-violet-400', numColor: 'text-violet-600',
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /> },
-    { label: 'NCC trong nước', value: stats.domesticSuppliers, gradient: 'from-teal-500 to-teal-700', shadow: 'shadow-teal-200',
+    { label: 'NCC trong nước', value: stats.domesticSuppliers, iconColor: 'text-teal-400', numColor: 'text-teal-600',
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /> },
-    { label: 'NCC nước ngoài', value: stats.foreignSuppliers, gradient: 'from-sky-500 to-sky-700', shadow: 'shadow-sky-200',
+    { label: 'NCC nước ngoài', value: stats.foreignSuppliers, iconColor: 'text-sky-400', numColor: 'text-sky-600',
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /> },
-    { label: 'Tổng nợ NCC', value: fmt(stats.totalSupplierDebt), gradient: 'from-red-600 to-red-800', shadow: 'shadow-red-200',
+    { label: 'Tổng nợ NCC', value: fmt(stats.totalSupplierDebt), iconColor: 'text-red-400', numColor: 'text-red-600',
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" /> },
   ] : fixedTypeGroup === 'freight' ? [
-    { label: 'Tổng đơn vị VC', value: stats.freight, gradient: 'from-orange-400 to-orange-600', shadow: 'shadow-orange-200',
+    { label: 'Tổng đơn vị VC', value: stats.freight, iconColor: 'text-orange-400', numColor: 'text-orange-600',
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /> },
-    { label: 'Đơn vị có công nợ', value: stats.freightWithDebt, sub: `/ ${stats.freight} đơn vị`, gradient: 'from-rose-500 to-rose-700', shadow: 'shadow-rose-200',
+    { label: 'Đơn vị có công nợ', value: stats.freightWithDebt, sub: `/ ${stats.freight} đơn vị`, iconColor: 'text-rose-400', numColor: 'text-rose-600',
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /> },
-    { label: 'Tổng công nợ phải trả', value: fmt(stats.totalFreightDebt), gradient: 'from-red-600 to-red-800', shadow: 'shadow-red-200',
+    { label: 'Tổng công nợ phải trả', value: fmt(stats.totalFreightDebt), iconColor: 'text-red-400', numColor: 'text-red-600',
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" /> },
   ] : [];
 
@@ -515,12 +515,11 @@ export default function PartnersListPage({ fixedTypeGroup }: { fixedTypeGroup?: 
                   <div className="w-6 h-6 rounded-md bg-white/15 flex items-center justify-center flex-shrink-0">
                     <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                   </div>
-                  <div className="z-10 min-w-0">
-                    <p className="text-[10px] text-white/60 font-medium leading-none">CN phải thu (KH nợ)</p>
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-gray-400 font-medium leading-none">CN phải thu (KH nợ)</p>
                     <p className="text-base font-bold text-white mt-0.5 leading-none truncate">{fmt(stats.totalCustomerDebt)}</p>
                     <p className="text-[10px] text-white/50 mt-0.5 leading-none">{stats.customersWithDebt} khách hàng</p>
                   </div>
-                  <div className="absolute -right-2 -bottom-2 w-10 h-10 rounded-full bg-white/10" />
                 </div>
 
                 {/* CN phải trả — tách loại tiền */}
@@ -529,7 +528,7 @@ export default function PartnersListPage({ fixedTypeGroup }: { fixedTypeGroup?: 
                     <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/></svg>
                   </div>
                   <div className="z-10 min-w-0 flex-1">
-                    <p className="text-[10px] text-white/60 font-medium leading-none">CN phải trả · {stats.suppliersWithDebt + stats.freightWithDebt} đối tác</p>
+                    <p className="text-[10px] text-gray-400 font-medium leading-none">CN phải trả · {stats.suppliersWithDebt + stats.freightWithDebt} đối tác</p>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       {stats.debtVnd > 0 && (
                         <p className="text-sm font-bold text-white leading-none">{fmt(stats.debtVnd)}</p>
@@ -548,7 +547,6 @@ export default function PartnersListPage({ fixedTypeGroup }: { fixedTypeGroup?: 
                       )}
                     </div>
                   </div>
-                  <div className="absolute -right-2 -bottom-2 w-10 h-10 rounded-full bg-white/10" />
                 </div>
 
                 {/* Công nợ ròng */}
@@ -559,12 +557,11 @@ export default function PartnersListPage({ fixedTypeGroup }: { fixedTypeGroup?: 
                       <div className="w-6 h-6 rounded-md bg-white/15 flex items-center justify-center flex-shrink-0">
                         <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
                       </div>
-                      <div className="z-10 min-w-0">
-                        <p className="text-[10px] text-white/60 font-medium leading-none">Công nợ ròng</p>
+                      <div className="min-w-0">
+                        <p className="text-[10px] text-gray-400 font-medium leading-none">Công nợ ròng</p>
                         <p className="text-base font-bold text-white mt-0.5 leading-none truncate">{(isPos ? '+' : '') + fmt(net)}</p>
                         <p className="text-[10px] text-white/50 mt-0.5 leading-none">{isPos ? 'Có lợi' : 'Cần chú ý'}</p>
                       </div>
-                      <div className="absolute -right-2 -bottom-2 w-10 h-10 rounded-full bg-white/10" />
                     </div>
                   );
                 })()}
@@ -574,16 +571,15 @@ export default function PartnersListPage({ fixedTypeGroup }: { fixedTypeGroup?: 
         ) : (
           <div className={`grid gap-3 ${kpiCards.length === 3 ? 'grid-cols-3' : 'grid-cols-4'}`}>
             {kpiCards.map((k) => (
-              <div key={k.label} className={`relative overflow-hidden rounded-lg bg-gradient-to-br ${k.gradient} shadow-sm ${k.shadow} flex items-center gap-2 px-3 py-2`}>
-                <div className="w-6 h-6 rounded-md bg-white/15 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">{k.icon}</svg>
+              <div key={k.label} className="bg-white rounded-lg border border-gray-100 shadow-sm flex items-center gap-2 px-3 py-2">
+                <div className="w-6 h-6 rounded-md bg-gray-50 flex items-center justify-center flex-shrink-0">
+                  <svg className={`w-3 h-3 ${k.iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">{k.icon}</svg>
                 </div>
-                <div className="z-10 min-w-0">
-                  <p className="text-[10px] text-white/60 font-medium leading-none">{k.label}</p>
-                  <p className="text-base font-bold text-white mt-0.5 leading-none truncate">{k.value}</p>
-                  {k.sub && <p className="text-[10px] text-white/50 mt-0.5 leading-none">{k.sub}</p>}
+                <div className="min-w-0">
+                  <p className="text-[10px] text-gray-400 font-medium leading-none">{k.label}</p>
+                  <p className={`text-base font-bold mt-0.5 leading-none truncate ${k.numColor}`}>{k.value}</p>
+                  {k.sub && <p className="text-[10px] text-gray-400/60 mt-0.5 leading-none">{k.sub}</p>}
                 </div>
-                <div className="absolute -right-2 -bottom-2 w-10 h-10 rounded-full bg-white/10" />
               </div>
             ))}
           </div>

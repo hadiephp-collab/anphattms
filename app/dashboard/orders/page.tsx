@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 // Trang danh sách Đơn Hàng — KPI theo kỳ, tabs, bộ lọc, chọn cột, sort, phân trang, xuất file
 
 import { useEffect, useState, useCallback, useRef } from 'react';
@@ -369,32 +369,31 @@ export default function OrdersPage() {
           <>
           <div className="grid grid-cols-4 gap-3 mb-3">
             {([
-              { label: 'Tổng đơn',  value: stats.totalOrders.toLocaleString(), sub: 'Xem tất cả',                      gradient: 'from-slate-600 to-slate-800', shadow: 'shadow-slate-200',
+              { label: 'Tổng đơn',  value: stats.totalOrders.toLocaleString(), sub: 'Xem tất cả',                      iconColor: 'text-slate-400', numColor: 'text-slate-700',
                 onClick: () => { setActiveTab('all'); setFilterStatus(''); setFilterPaymentStatus(''); setFilterAssignedTo(''); setPage(1); },
                 icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /> },
-              { label: 'Doanh thu', value: fmtM(stats.revenue),   sub: `${stats.totalOrders} đơn`,                     gradient: 'from-blue-500 to-blue-700',   shadow: 'shadow-blue-200',
+              { label: 'Doanh thu', value: fmtM(stats.revenue),   sub: `${stats.totalOrders} đơn`,                     iconColor: 'text-blue-400', numColor: 'text-blue-600',
                 onClick: null as (() => void) | null,
                 icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /> },
-              { label: 'Đã thu',    value: fmtM(stats.collected), sub: `Lọc đơn đã thanh toán`,                        gradient: 'from-emerald-500 to-emerald-700', shadow: 'shadow-emerald-200',
+              { label: 'Đã thu',    value: fmtM(stats.collected), sub: `Lọc đơn đã thanh toán`,                        iconColor: 'text-emerald-400', numColor: 'text-emerald-600',
                 onClick: () => { setFilterPaymentStatus('paid'); setPage(1); },
                 icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /> },
-              { label: 'Còn nợ',   value: fmtM(stats.debt),      sub: `${stats.hasDebtCount} đơn chưa thu đủ`,        gradient: 'from-red-500 to-red-700',     shadow: 'shadow-red-200',
+              { label: 'Còn nợ',   value: fmtM(stats.debt),      sub: `${stats.hasDebtCount} đơn chưa thu đủ`,        iconColor: 'text-red-400', numColor: 'text-red-600',
                 onClick: () => { setActiveTab('has_debt'); setPage(1); },
                 icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /> },
             ] as const).map(k => {
               const Tag = k.onClick ? 'button' : 'div';
               return (
               <Tag key={k.label} onClick={k.onClick ?? undefined}
-                className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${k.gradient} shadow-sm ${k.shadow} flex items-center gap-3 px-4 py-3.5 w-full text-left ${k.onClick ? 'cursor-pointer hover:brightness-110 active:scale-[0.98] transition' : ''}`}>
-                <div className="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center flex-shrink-0">
+                className={"bg-white rounded-lg border border-gray-100 shadow-sm flex items-center gap-2.5 px-3 py-2"}>
+                <div className="w-6 h-6 rounded-md bg-gray-50 flex items-center justify-center flex-shrink-0">
                   <svg className="w-[18px] h-[18px] text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">{k.icon}</svg>
                 </div>
-                <div className="z-10 min-w-0">
-                  <p className="text-[11px] text-white/60 font-medium leading-none">{k.label}</p>
+                <div className="min-w-0">
+                  <p className="text-[10px] text-gray-400 font-medium leading-none">{k.label}</p>
                   <p className="text-base font-bold text-white mt-0.5 leading-tight truncate">{k.value}</p>
                   {k.sub && <p className={`text-[10px] mt-0.5 leading-none ${k.onClick ? 'text-white/70 underline underline-offset-2' : 'text-white/50'}`}>{k.sub}</p>}
                 </div>
-                <div className="absolute -right-3 -bottom-3 w-14 h-14 rounded-full bg-white/10" />
               </Tag>
             )})}
           </div>

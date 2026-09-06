@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
@@ -422,7 +422,7 @@ export default function ReturnsPage() {
         {/* KPI */}
         <div className="grid grid-cols-5 gap-2.5">
           {kpiCards.map(k=>(
-            <div key={k.label} className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${k.gradient} shadow-sm px-3.5 py-2.5`}>
+            <div key={k.label} className={"bg-white rounded-lg border border-gray-100 shadow-sm flex items-center gap-2.5 px-3 py-2"}>
               <div className="flex items-start justify-between gap-1">
                 <p className="text-[11px] text-white/70 font-medium leading-tight">{k.label}</p>
                 {(k as {delta?:number}).delta !== undefined && (k as {delta?:number}).delta !== 0 && (

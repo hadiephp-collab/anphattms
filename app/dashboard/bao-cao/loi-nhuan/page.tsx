@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useState, useCallback } from 'react';
 import { reportsApi, profitApi } from '@/lib/reports';
 import { localDateStr } from '@/lib/utils';

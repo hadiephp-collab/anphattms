@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
@@ -177,13 +177,13 @@ export default function ThuChiOverviewPage() {
 
   /* KPI cards — EXACT same pattern as Đối Tác / Sản Phẩm */
   const kpiCards = [
-    { label: 'Tổng Thu',        value: fmtMoney(cur?.totalReceipt || 0), gradient: 'from-emerald-500 to-emerald-700', shadow: 'shadow-emerald-100', href: '/dashboard/thu-chi/phieu-thu',
+    { label: 'Tổng Thu',        value: fmtMoney(cur?.totalReceipt || 0), iconColor: 'text-emerald-400', numColor: 'text-emerald-600', href: '/dashboard/thu-chi/phieu-thu',
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M7 11l5-5m0 0l5 5m-5-5v12M3 6a2 2 0 012-2h14a2 2 0 012 2" /> },
-    { label: 'Tổng Chi',        value: fmtMoney(cur?.totalPayment || 0), gradient: 'from-red-500 to-red-700',          shadow: 'shadow-red-100',     href: '/dashboard/thu-chi/phieu-chi',
+    { label: 'Tổng Chi',        value: fmtMoney(cur?.totalPayment || 0), iconColor: 'text-red-400', numColor: 'text-red-600',     href: '/dashboard/thu-chi/phieu-chi',
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M17 13l-5 5m0 0l-5-5m5 5V6M21 18a2 2 0 01-2 2H5a2 2 0 01-2-2" /> },
-    { label: 'Lợi Nhuận Ròng',  value: fmtMoney(cur?.net || 0),          gradient: (cur?.net || 0) >= 0 ? 'from-blue-500 to-blue-700' : 'from-orange-500 to-orange-700', shadow: 'shadow-blue-100', href: '/dashboard/thu-chi/so-quy',
+    { label: 'Lợi Nhuận Ròng',  value: fmtMoney(cur?.net || 0),          iconColor: (cur?.net || 0) >= 0 ? 'text-blue-400' : 'text-orange-400', numColor: (cur?.net || 0) >= 0 ? 'text-blue-600' : 'text-orange-600', href: '/dashboard/thu-chi/so-quy',
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /> },
-    { label: 'Số Dư Tiền Mặt',  value: fmtMoney(stats?.ptttBalance?.cash || 0), gradient: 'from-violet-500 to-violet-700', shadow: 'shadow-violet-100', href: '/dashboard/thu-chi/so-quy',
+    { label: 'Số Dư Tiền Mặt',  value: fmtMoney(stats?.ptttBalance?.cash || 0), iconColor: 'text-violet-400', numColor: 'text-violet-600', href: '/dashboard/thu-chi/so-quy',
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /> },
   ];
 
@@ -253,15 +253,15 @@ export default function ThuChiOverviewPage() {
         <div className="grid grid-cols-4 gap-3">
           {kpiCards.map(card => (
             <button key={card.label} onClick={() => router.push(card.href)}
-              className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${card.gradient} shadow-sm ${card.shadow} flex items-center gap-3 px-4 py-4 text-left hover:opacity-90 transition group w-full`}>
-              <div className="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center flex-shrink-0">
-                <svg className="w-[18px] h-[18px] text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">{card.icon}</svg>
+              className="bg-white rounded-lg border border-gray-100 shadow-sm flex items-center gap-2.5 px-3 py-2 text-left hover:bg-gray-50 transition w-full">
+              <div className="w-6 h-6 rounded-md bg-gray-50 flex items-center justify-center flex-shrink-0">
+                <svg className={`w-3 h-3 ${card.iconColor ?? 'text-slate-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">{card.icon}</svg>
               </div>
-              <div className="z-10">
-                <p className="text-[11px] text-white/60 font-medium leading-none">{card.label}</p>
+              <div>
+                <p className="text-[10px] text-gray-400 font-medium leading-none">{card.label}</p>
                 {loading
-                  ? <div className="h-6 w-28 bg-white/20 rounded mt-1 animate-pulse" />
-                  : <p className="text-2xl font-bold text-white mt-1 leading-none">{card.value}</p>}
+                  ? <div className="h-5 w-20 bg-gray-100 rounded mt-0.5 animate-pulse" />
+                  : <p className={`text-base font-bold mt-0.5 leading-none ${card.numColor ?? 'text-slate-700'}`}>{card.value}</p>}
               </div>
             </button>
           ))}

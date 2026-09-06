@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
@@ -407,39 +407,38 @@ export default function PurchaseReturnsListPage() {
             {([
               {
                 label: 'Tổng phiếu trả', value: stats.total.toLocaleString('vi-VN'),
-                gradient: 'from-slate-600 to-slate-800', shadow: 'shadow-slate-200',
+                iconColor: 'text-slate-400', numColor: 'text-slate-700',
                 icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />,
               },
               {
                 label: 'Nháp', value: stats.pending.toLocaleString('vi-VN'),
-                gradient: 'from-amber-500 to-amber-700', shadow: 'shadow-amber-200',
+                iconColor: 'text-amber-400', numColor: 'text-amber-600',
                 icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />,
               },
               {
                 label: 'Đã gửi NCC', value: stats.sent.toLocaleString('vi-VN'),
-                gradient: 'from-blue-500 to-blue-700', shadow: 'shadow-blue-200',
+                iconColor: 'text-blue-400', numColor: 'text-blue-600',
                 icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />,
               },
               {
                 label: 'Đã xác nhận', value: stats.confirmed.toLocaleString('vi-VN'),
-                gradient: 'from-emerald-500 to-emerald-700', shadow: 'shadow-emerald-200',
+                iconColor: 'text-emerald-400', numColor: 'text-emerald-600',
                 icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />,
               },
               {
                 label: 'Tổng giá trị trả', value: fmt(stats.totalValueVnd),
-                gradient: 'from-red-500 to-red-700', shadow: 'shadow-red-200',
+                iconColor: 'text-red-400', numColor: 'text-red-600',
                 icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />,
               },
             ] as const).map(k => (
-              <div key={k.label} className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${k.gradient} shadow-sm ${k.shadow} flex items-center gap-2.5 px-3.5 py-2.5`}>
-                <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">{k.icon}</svg>
+              <div key={k.label} className={"bg-white rounded-lg border border-gray-100 shadow-sm flex items-center gap-2.5 px-3 py-2"}>
+                <div className="w-6 h-6 rounded-md bg-gray-50 flex items-center justify-center flex-shrink-0">
+                  <svg className={`w-3 h-3 ${k.iconColor ?? 'text-slate-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">{k.icon}</svg>
                 </div>
-                <div className="z-10 min-w-0">
-                  <p className="text-[10px] text-white/60 font-medium leading-none">{k.label}</p>
-                  <p className="text-sm font-bold text-white mt-0.5 leading-tight truncate">{k.value}</p>
+                <div className="min-w-0">
+                  <p className="text-[10px] text-gray-400 font-medium leading-none">{k.label}</p>
+                  <p className={`text-sm font-bold mt-0.5 leading-tight truncate ${k.numColor ?? 'text-slate-700'}`}>{k.value}</p>
                 </div>
-                <div className="absolute -right-3 -bottom-3 w-12 h-12 rounded-full bg-white/10" />
               </div>
             ))}
           </div>

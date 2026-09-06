@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
@@ -217,13 +217,13 @@ export default function EmployeesPage() {
   }
 
   const kpiCards = [
-    { label: 'Tổng nhân viên',  value: stats?.total ?? 0,      gradient: 'from-slate-600 to-slate-800',   shadow: 'shadow-slate-200',
+    { label: 'Tổng nhân viên',  value: stats?.total ?? 0,      iconColor: 'text-slate-400', numColor: 'text-slate-700',
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /> },
-    { label: 'Đang làm việc',   value: stats?.active ?? 0,     gradient: 'from-emerald-500 to-emerald-700', shadow: 'shadow-emerald-200',
+    { label: 'Đang làm việc',   value: stats?.active ?? 0,     iconColor: 'text-emerald-400', numColor: 'text-emerald-600',
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /> },
-    { label: 'Đã có tài khoản', value: stats?.hasAccount ?? 0, gradient: 'from-blue-500 to-blue-700',      shadow: 'shadow-blue-200',
+    { label: 'Đã có tài khoản', value: stats?.hasAccount ?? 0, iconColor: 'text-blue-400', numColor: 'text-blue-600',
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /> },
-    { label: 'Đã nghỉ việc',    value: stats?.inactive ?? 0,   gradient: 'from-red-500 to-red-700',        shadow: 'shadow-red-200',
+    { label: 'Đã nghỉ việc',    value: stats?.inactive ?? 0,   iconColor: 'text-red-400', numColor: 'text-red-600',
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /> },
   ];
 
@@ -261,15 +261,14 @@ export default function EmployeesPage() {
         {/* KPI */}
         <div className="grid grid-cols-4 gap-3">
           {kpiCards.map(k => (
-            <div key={k.label} className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${k.gradient} shadow-sm ${k.shadow} flex items-center gap-3 px-4 py-4`}>
-              <div className="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center flex-shrink-0">
-                <svg className="w-[18px] h-[18px] text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">{k.icon}</svg>
+            <div key={k.label} className={"bg-white rounded-lg border border-gray-100 shadow-sm flex items-center gap-2.5 px-3 py-2"}>
+              <div className="w-6 h-6 rounded-md bg-gray-50 flex items-center justify-center flex-shrink-0">
+                <svg className={`w-3 h-3 ${k.iconColor ?? 'text-slate-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">{k.icon}</svg>
               </div>
-              <div className="z-10">
-                <p className="text-[11px] text-white/60 font-medium leading-none">{k.label}</p>
-                <p className="text-2xl font-bold text-white mt-1 leading-none">{fmt(k.value)}</p>
+              <div>
+                <p className="text-[10px] text-gray-400 font-medium leading-none">{k.label}</p>
+                <p className={`text-base font-bold mt-0.5 leading-none ${k.numColor ?? 'text-slate-700'}`}>{fmt(k.value)}</p>
               </div>
-              <div className="absolute -right-3 -bottom-3 w-16 h-16 rounded-full bg-white/10" />
             </div>
           ))}
         </div>
