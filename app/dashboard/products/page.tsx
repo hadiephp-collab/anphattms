@@ -61,11 +61,11 @@ const DEFAULT_VISIBLE = new Set([
   'costPriceCny', 'costPrice', 'stock', 'priority', 'status',
 ]);
 
-const STORAGE_KEY = 'products_col_order_v6';
+const STORAGE_KEY = 'products_col_order_v7';
 
 // Các cột text — hiện toggle kiểu hiển thị trong Column Manager
 const TEXT_DISPLAY_COLS = new Set([
-  'nameChinese', 'nameEnglish',
+  'name', 'nameChinese', 'nameEnglish',
   'brand', 'category', 'unit', 'warehouseLocation', 'customsName', 'hsCode',
   'packagingInfo', 'customsDescription', 'importNotes',
 ]);
@@ -77,6 +77,7 @@ const STICKY_WIDTHS: Record<string, number> = {
 };
 
 const DEFAULT_DISPLAY: Record<string, 'truncate' | 'clamp' | 'wrap'> = {
+  name: 'truncate',
   nameChinese: 'wrap',
   nameEnglish: 'wrap',
   brand: 'truncate',
