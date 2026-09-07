@@ -40,9 +40,12 @@ const MOVE_LABELS: Record<string, { label: string; color: string }> = {
   TRANSFER_IN:  { label: 'Nhận CK',    color: 'text-teal-600 bg-teal-50 border-teal-100' },
   TRANSFER_OUT: { label: 'Xuất CK',    color: 'text-gray-600 bg-gray-50 border-gray-200' },
   DAMAGE:       { label: 'Hàng hỏng',  color: 'text-rose-700 bg-rose-50 border-rose-100' },
+  SUPPLIER_RETURN_OUT: { label: 'Trả NCC', color: 'text-orange-600 bg-orange-50 border-orange-100' },
+  MANUAL_IN:    { label: 'Nhập thủ công', color: 'text-emerald-700 bg-emerald-50 border-emerald-100' },
+  MANUAL_OUT:   { label: 'Xuất thủ công', color: 'text-gray-600 bg-gray-50 border-gray-200' },
 };
 
-type Tab = 'info' | 'variants' | 'images' | 'invoice' | 'history';
+type Tab = 'info' | 'history';
 
 function PriceInput({ value, onChange, className }: { value: string; onChange: (v: string) => void; className?: string }) {
   const [focused, setFocused] = useState(false);
@@ -208,24 +211,20 @@ export default function ProductDetailPage() {
   const isLowStock = product.lowStockThreshold != null && stockQty > 0 && stockQty <= product.lowStockThreshold;
   const isOutOfStock = stockQty <= 0;
 
-  const tabs: { key: Tab; label: string; count?: number }[] = [
-    { key: 'info',     label: 'Thông tin' },
-    { key: 'variants', label: 'Biến thể',   count: product.variants?.length },
-    { key: 'images',   label: 'Ảnh',        count: product.images?.length },
-    { key: 'invoice',  label: 'Tên HĐ VAT', count: product.invoiceNames?.length },
-    { key: 'history',  label: 'Lịch sử kho' },
+  const tabs: { key: Tab; label: string }[] = [
+    { key: 'info',    label: 'Thông tin' },
+    { key: 'history', label: 'Lịch sử kho' },
   ];
 
   const inputCls = 'w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-gray-300 bg-white';
   const labelCls = 'block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1';
-  const valCls = 'text-sm text-gray-700';
 
   return (
     <div className="flex flex-col h-full bg-[#f5f6fa]">
       {/* Header */}
       <div className={`bg-white border-b px-7 py-4 flex items-center justify-between flex-shrink-0 ${isEditing ? 'border-amber-200' : 'border-gray-100'}`}>
         <div className="flex items-center gap-3">
-          <button onClick={() => isEditing ? (setIsEditing(false)) : router.push('/dashboard/products')}
+          <button onClick={() => isEditing ? setIsEditing(false) : router.push('/dashboard/products')}
             className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 transition">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -282,308 +281,320 @@ export default function ProductDetailPage() {
 
       <div className="flex-1 overflow-auto px-6 py-5">
         <div className="grid grid-cols-3 gap-4 max-w-6xl">
-          {/* Left — tabs */}
+          {/* Left — main content */}
           <div className="col-span-2 space-y-4">
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
-              {/* Tab bar — hide tabs other than info when editing */}
+              {/* Tab bar — only 2 tabs, always accessible */}
               <div className="flex border-b border-gray-100 px-4">
                 {tabs.map((t) => (
                   <button key={t.key}
-                    onClick={() => !isEditing && setTab(t.key)}
-                    disabled={isEditing && t.key !== 'info'}
-                    className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition -mb-px
-                      ${tab === t.key ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}
-                      ${isEditing && t.key !== 'info' ? 'opacity-30 cursor-default' : ''}`}>
+                    onClick={() => setTab(t.key)}
+                    className={`px-4 py-3 text-sm font-medium border-b-2 transition -mb-px
+                      ${tab === t.key ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
                     {t.label}
-                    {t.count != null && t.count > 0 && (
-                      <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-medium ${tab === t.key ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>{t.count}</span>
-                    )}
                   </button>
                 ))}
               </div>
 
               <div className="p-5">
                 {/* ── Tab: Thông tin ── */}
-                {tab === 'info' && !isEditing && (
+                {tab === 'info' && (
                   <div>
-                    {/* Name row (full width) */}
-                    <div className="mb-4">
-                      <p className={labelCls}>Tên sản phẩm</p>
-                      <p className="text-base font-semibold text-gray-800">{product.name}</p>
-                    </div>
-                    <div className="grid grid-cols-3 gap-x-6 gap-y-4">
-                      {[
-                        { label: 'Mã sản phẩm', value: product.code, mono: true },
-                        { label: 'Danh mục', value: product.category },
-                        { label: 'Đơn vị tính', value: product.unit },
-                        { label: 'Thương hiệu', value: product.brand },
-                        { label: 'Barcode', value: product.barcode, mono: true },
-                        { label: 'Mã NCC', value: product.supplierCode, mono: true },
-                        { label: 'Vị trí kho', value: product.warehouseLocation },
-                        { label: 'Ngưỡng tồn kho', value: product.lowStockThreshold != null ? `${product.lowStockThreshold} ${product.unit || 'cái'}` : undefined },
-                        { label: 'Bảo hành', value: product.warrantyMonths != null ? `${product.warrantyMonths} tháng` : undefined },
-                        { label: 'Trọng lượng', value: product.weight ? `${product.weight} ${product.weightUnit || 'kg'}` : undefined },
-                        { label: 'Thuế suất mặc định', value: `${product.defaultVatRate ?? 10}%` },
-                        { label: 'Được bán', value: product.isSaleable ? 'Có' : 'Không' },
-                        { label: 'Trạng thái', value: product.isActive ? 'Đang hoạt động' : 'Ngừng bán' },
-                        { label: 'Có biến thể', value: product.hasVariants ? 'Có' : 'Không' },
-                        { label: 'Ngày tạo', value: fmtDate(product.createdAt) },
-                        { label: 'Cập nhật', value: fmtDate(product.updatedAt) },
-                      ].map(({ label, value, mono }) => (
-                        <div key={label}>
-                          <p className={labelCls}>{label}</p>
-                          <p className={`text-sm ${mono ? 'font-mono text-gray-600' : 'text-gray-700'}`}>
-                            {value || <span className="text-gray-300">—</span>}
-                          </p>
+                    {/* Product fields — view mode */}
+                    {!isEditing && (
+                      <div>
+                        <div className="mb-4">
+                          <p className={labelCls}>Tên sản phẩm</p>
+                          <p className="text-base font-semibold text-gray-800">{product.name}</p>
                         </div>
-                      ))}
-                    </div>
-                    {/* Full-width fields */}
-                    {product.tags && product.tags.length > 0 && (
-                      <div className="mt-4">
-                        <p className={labelCls}>Tags</p>
-                        <div className="flex flex-wrap gap-1.5 mt-1">
-                          {product.tags.map((t, i) => (
-                            <span key={i} className="text-xs bg-blue-50 text-blue-500 border border-blue-100 px-2 py-0.5 rounded-full">{t}</span>
+                        <div className="grid grid-cols-3 gap-x-6 gap-y-4">
+                          {[
+                            { label: 'Mã sản phẩm', value: product.code, mono: true },
+                            { label: 'Danh mục', value: product.category },
+                            { label: 'Đơn vị tính', value: product.unit },
+                            { label: 'Thương hiệu', value: product.brand },
+                            { label: 'Barcode', value: product.barcode, mono: true },
+                            { label: 'Mã NCC', value: product.supplierCode, mono: true },
+                            { label: 'Vị trí kho', value: product.warehouseLocation },
+                            { label: 'Ngưỡng tồn kho', value: product.lowStockThreshold != null ? `${product.lowStockThreshold} ${product.unit || 'cái'}` : undefined },
+                            { label: 'Bảo hành', value: product.warrantyMonths != null ? `${product.warrantyMonths} tháng` : undefined },
+                            { label: 'Trọng lượng', value: product.weight ? `${product.weight} ${product.weightUnit || 'kg'}` : undefined },
+                            { label: 'Thuế suất mặc định', value: `${product.defaultVatRate ?? 10}%` },
+                            { label: 'Được bán', value: product.isSaleable ? 'Có' : 'Không' },
+                            { label: 'Trạng thái', value: product.isActive ? 'Đang hoạt động' : 'Ngừng bán' },
+                            { label: 'Có biến thể', value: product.hasVariants ? 'Có' : 'Không' },
+                            { label: 'Ngày tạo', value: fmtDate(product.createdAt) },
+                            { label: 'Cập nhật', value: fmtDate(product.updatedAt) },
+                          ].map(({ label, value, mono }) => (
+                            <div key={label}>
+                              <p className={labelCls}>{label}</p>
+                              <p className={`text-sm ${mono ? 'font-mono text-gray-600' : 'text-gray-700'}`}>
+                                {value || <span className="text-gray-300">—</span>}
+                              </p>
+                            </div>
                           ))}
                         </div>
+                        {product.tags && product.tags.length > 0 && (
+                          <div className="mt-4">
+                            <p className={labelCls}>Tags</p>
+                            <div className="flex flex-wrap gap-1.5 mt-1">
+                              {product.tags.map((t, i) => (
+                                <span key={i} className="text-xs bg-blue-50 text-blue-500 border border-blue-100 px-2 py-0.5 rounded-full">{t}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {product.description && (
+                          <div className="mt-4">
+                            <p className={labelCls}>Mô tả sản phẩm</p>
+                            <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{product.description}</p>
+                          </div>
+                        )}
+                        {product.notes && (
+                          <div className="mt-4">
+                            <p className={labelCls}>Ghi chú nội bộ</p>
+                            <p className="text-sm text-gray-600 whitespace-pre-wrap">{product.notes}</p>
+                          </div>
+                        )}
+                        {!product.description && !product.notes && !product.tags?.length && (
+                          <p className="text-xs text-gray-300 mt-4 italic">Chưa có mô tả, ghi chú hoặc tags — bấm Chỉnh sửa để bổ sung</p>
+                        )}
                       </div>
                     )}
-                    {product.description && (
-                      <div className="mt-4">
-                        <p className={labelCls}>Mô tả sản phẩm</p>
-                        <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{product.description}</p>
-                      </div>
-                    )}
-                    {product.notes && (
-                      <div className="mt-4">
-                        <p className={labelCls}>Ghi chú nội bộ</p>
-                        <p className="text-sm text-gray-600 whitespace-pre-wrap">{product.notes}</p>
-                      </div>
-                    )}
-                    {!product.description && !product.notes && !product.tags?.length && (
-                      <p className="text-xs text-gray-300 mt-4 italic">Chưa có mô tả, ghi chú hoặc tags — bấm Chỉnh sửa để bổ sung</p>
-                    )}
-                  </div>
-                )}
 
-                {/* ── Tab: Thông tin (edit mode) ── */}
-                {tab === 'info' && isEditing && (
-                  <div className="space-y-4">
-                    {/* Tên SP */}
-                    <div>
-                      <label className={labelCls}>Tên sản phẩm <span className="text-red-400 normal-case font-normal">*</span></label>
-                      <input value={eName} onChange={(e) => setEName(e.target.value)} placeholder="Tên sản phẩm..."
-                        className={`${inputCls} text-base font-medium`} />
-                    </div>
+                    {/* Product fields — edit mode */}
+                    {isEditing && (
+                      <div className="space-y-4">
+                        {/* Tên SP */}
+                        <div>
+                          <label className={labelCls}>Tên sản phẩm <span className="text-red-400 normal-case font-normal">*</span></label>
+                          <input value={eName} onChange={(e) => setEName(e.target.value)} placeholder="Tên sản phẩm..."
+                            className={`${inputCls} text-base font-medium`} />
+                        </div>
 
-                    {/* Row 1: Mã SP | Danh mục | ĐVT */}
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <label className={labelCls}>Mã sản phẩm</label>
-                        <input value={eCode} onChange={(e) => setECode(e.target.value)} placeholder="SP001"
-                          className={`${inputCls} font-mono`} />
-                      </div>
-                      <div>
-                        <label className={labelCls}>Danh mục</label>
-                        <select value={eCategory} onChange={(e) => setECategory(e.target.value)} className={inputCls}>
-                          <option value="">-- Chọn --</option>
-                          {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className={labelCls}>Đơn vị tính</label>
-                        <select value={eUnit} onChange={(e) => setEUnit(e.target.value)} className={inputCls}>
-                          <option value="">-- Chọn --</option>
-                          {activeUnits.map((u) => <option key={u.id} value={u.name}>{u.name} ({u.code})</option>)}
-                          {eUnit && !activeUnits.some((u) => u.name === eUnit) && <option value={eUnit}>{eUnit} (cũ)</option>}
-                        </select>
-                      </div>
-                    </div>
+                        {/* Row 1: Mã SP | Danh mục | ĐVT */}
+                        <div className="grid grid-cols-3 gap-3">
+                          <div>
+                            <label className={labelCls}>Mã sản phẩm</label>
+                            <input value={eCode} onChange={(e) => setECode(e.target.value)} placeholder="SP001"
+                              className={`${inputCls} font-mono`} />
+                          </div>
+                          <div>
+                            <label className={labelCls}>Danh mục</label>
+                            <select value={eCategory} onChange={(e) => setECategory(e.target.value)} className={inputCls}>
+                              <option value="">-- Chọn --</option>
+                              {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className={labelCls}>Đơn vị tính</label>
+                            <select value={eUnit} onChange={(e) => setEUnit(e.target.value)} className={inputCls}>
+                              <option value="">-- Chọn --</option>
+                              {activeUnits.map((u) => <option key={u.id} value={u.name}>{u.name} ({u.code})</option>)}
+                              {eUnit && !activeUnits.some((u) => u.name === eUnit) && <option value={eUnit}>{eUnit} (cũ)</option>}
+                            </select>
+                          </div>
+                        </div>
 
-                    {/* Row 2: Thương hiệu | Barcode | Mã NCC */}
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <label className={labelCls}>Thương hiệu</label>
-                        <input value={eBrand} onChange={(e) => setEBrand(e.target.value)} placeholder="Hãng / thương hiệu" className={inputCls} />
-                      </div>
-                      <div>
-                        <label className={labelCls}>Barcode</label>
-                        <input value={eBarcode} onChange={(e) => setEBarcode(e.target.value)} placeholder="Mã vạch" className={`${inputCls} font-mono`} />
-                      </div>
-                      <div>
-                        <label className={labelCls}>Mã NCC</label>
-                        <input value={eSupplierCode} onChange={(e) => setESupplierCode(e.target.value)} placeholder="Mã của nhà cung cấp" className={`${inputCls} font-mono`} />
-                      </div>
-                    </div>
+                        {/* Row 2: Thương hiệu | Barcode | Mã NCC */}
+                        <div className="grid grid-cols-3 gap-3">
+                          <div>
+                            <label className={labelCls}>Thương hiệu</label>
+                            <input value={eBrand} onChange={(e) => setEBrand(e.target.value)} placeholder="Hãng / thương hiệu" className={inputCls} />
+                          </div>
+                          <div>
+                            <label className={labelCls}>Barcode</label>
+                            <input value={eBarcode} onChange={(e) => setEBarcode(e.target.value)} placeholder="Mã vạch" className={`${inputCls} font-mono`} />
+                          </div>
+                          <div>
+                            <label className={labelCls}>Mã NCC</label>
+                            <input value={eSupplierCode} onChange={(e) => setESupplierCode(e.target.value)} placeholder="Mã của nhà cung cấp" className={`${inputCls} font-mono`} />
+                          </div>
+                        </div>
 
-                    {/* Row 3: Vị trí kho | Ngưỡng tồn | Bảo hành */}
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <label className={labelCls}>Vị trí kho</label>
-                        <input value={eWarehouseLocation} onChange={(e) => setEWarehouseLocation(e.target.value)} placeholder="VD: Kệ A1" className={inputCls} />
-                      </div>
-                      <div>
-                        <label className={labelCls}>Ngưỡng cảnh báo tồn</label>
-                        <input type="number" value={eLowStockThreshold} onChange={(e) => setELowStockThreshold(e.target.value)} placeholder="VD: 5" min={0} className={inputCls} />
-                      </div>
-                      <div>
-                        <label className={labelCls}>Bảo hành (tháng)</label>
-                        <input type="number" value={eWarrantyMonths} onChange={(e) => setEWarrantyMonths(e.target.value)} placeholder="VD: 12" min={0} max={360} className={inputCls} />
-                      </div>
-                    </div>
+                        {/* Row 3: Vị trí kho | Ngưỡng tồn | Bảo hành */}
+                        <div className="grid grid-cols-3 gap-3">
+                          <div>
+                            <label className={labelCls}>Vị trí kho</label>
+                            <input value={eWarehouseLocation} onChange={(e) => setEWarehouseLocation(e.target.value)} placeholder="VD: Kệ A1" className={inputCls} />
+                          </div>
+                          <div>
+                            <label className={labelCls}>Ngưỡng cảnh báo tồn</label>
+                            <input type="number" value={eLowStockThreshold} onChange={(e) => setELowStockThreshold(e.target.value)} placeholder="VD: 5" min={0} className={inputCls} />
+                          </div>
+                          <div>
+                            <label className={labelCls}>Bảo hành (tháng)</label>
+                            <input type="number" value={eWarrantyMonths} onChange={(e) => setEWarrantyMonths(e.target.value)} placeholder="VD: 12" min={0} max={360} className={inputCls} />
+                          </div>
+                        </div>
 
-                    {/* Row 4: Trọng lượng | Được bán + Hoạt động */}
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <label className={labelCls}>Trọng lượng</label>
-                        <div className="flex gap-1.5">
-                          <input type="number" value={eWeight} onChange={(e) => setEWeight(e.target.value)} placeholder="0" min={0} step="0.001"
-                            className={`${inputCls} flex-1`} />
-                          <select value={eWeightUnit} onChange={(e) => setEWeightUnit(e.target.value)}
-                            className="px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-14 bg-white">
-                            <option value="kg">kg</option>
-                            <option value="g">g</option>
-                          </select>
+                        {/* Row 4: Trọng lượng | Được bán + Hoạt động */}
+                        <div className="grid grid-cols-3 gap-3">
+                          <div>
+                            <label className={labelCls}>Trọng lượng</label>
+                            <div className="flex gap-1.5">
+                              <input type="number" value={eWeight} onChange={(e) => setEWeight(e.target.value)} placeholder="0" min={0} step="0.001"
+                                className={`${inputCls} flex-1`} />
+                              <select value={eWeightUnit} onChange={(e) => setEWeightUnit(e.target.value)}
+                                className="px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-14 bg-white">
+                                <option value="kg">kg</option>
+                                <option value="g">g</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div className="flex items-end gap-5 pb-1 col-span-2">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input type="checkbox" checked={eIsSaleable} onChange={(e) => setEIsSaleable(e.target.checked)}
+                                className="w-4 h-4 rounded border-gray-300 accent-blue-600" />
+                              <div>
+                                <div className="text-sm text-gray-700 font-medium">Được bán</div>
+                                <div className="text-[11px] text-gray-400">Hiển thị khi tạo đơn hàng</div>
+                              </div>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input type="checkbox" checked={eIsActive} onChange={(e) => setEIsActive(e.target.checked)}
+                                className="w-4 h-4 rounded border-gray-300 accent-blue-600" />
+                              <div>
+                                <div className="text-sm text-gray-700 font-medium">Đang hoạt động</div>
+                                <div className="text-[11px] text-gray-400">Bỏ tick để ngừng bán</div>
+                              </div>
+                            </label>
+                          </div>
+                        </div>
+
+                        {/* Tags */}
+                        <div>
+                          <label className={labelCls}>Tags</label>
+                          <input value={eTagsInput} onChange={(e) => setETagsInput(e.target.value)} placeholder="bán chạy, mùa hè, ký gửi... (phân cách bằng dấu phẩy)" className={inputCls} />
+                          {eTagsInput && (
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                              {eTagsInput.split(',').map((t) => t.trim()).filter(Boolean).map((tag, i) => (
+                                <span key={i} className="text-xs bg-blue-50 text-blue-500 border border-blue-100 px-2 py-0.5 rounded-full">{tag}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Mô tả */}
+                        <div>
+                          <label className={labelCls}>Mô tả sản phẩm</label>
+                          <textarea value={eDescription} onChange={(e) => setEDescription(e.target.value)}
+                            rows={3} placeholder="Mô tả chi tiết, thông số kỹ thuật..." className={inputCls} />
+                        </div>
+
+                        {/* Ghi chú */}
+                        <div>
+                          <label className={labelCls}>Ghi chú nội bộ</label>
+                          <textarea value={eNotes} onChange={(e) => setENotes(e.target.value)}
+                            rows={2} placeholder="Ghi chú chỉ dùng nội bộ..." className={inputCls} />
                         </div>
                       </div>
-                      <div className="flex items-end gap-5 pb-1 col-span-2">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="checkbox" checked={eIsSaleable} onChange={(e) => setEIsSaleable(e.target.checked)}
-                            className="w-4 h-4 rounded border-gray-300 accent-blue-600" />
-                          <div>
-                            <div className="text-sm text-gray-700 font-medium">Được bán</div>
-                            <div className="text-[11px] text-gray-400">Hiển thị khi tạo đơn hàng</div>
-                          </div>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="checkbox" checked={eIsActive} onChange={(e) => setEIsActive(e.target.checked)}
-                            className="w-4 h-4 rounded border-gray-300 accent-blue-600" />
-                          <div>
-                            <div className="text-sm text-gray-700 font-medium">Đang hoạt động</div>
-                            <div className="text-[11px] text-gray-400">Bỏ tick để ngừng bán</div>
-                          </div>
-                        </label>
-                      </div>
-                    </div>
+                    )}
 
-                    {/* Tags */}
-                    <div>
-                      <label className={labelCls}>Tags</label>
-                      <input value={eTagsInput} onChange={(e) => setETagsInput(e.target.value)} placeholder="bán chạy, mùa hè, ký gửi... (phân cách bằng dấu phẩy)" className={inputCls} />
-                      {eTagsInput && (
-                        <div className="flex flex-wrap gap-1.5 mt-2">
-                          {eTagsInput.split(',').map((t) => t.trim()).filter(Boolean).map((tag, i) => (
-                            <span key={i} className="text-xs bg-blue-50 text-blue-500 border border-blue-100 px-2 py-0.5 rounded-full">{tag}</span>
-                          ))}
-                        </div>
+                    {/* ── Biến thể (always visible) ── */}
+                    <div className="mt-6 pt-5 border-t border-gray-100">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                          Biến thể
+                          {(product.variants?.length ?? 0) > 0 && (
+                            <span className="text-[11px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium">{product.variants.length}</span>
+                          )}
+                        </h3>
+                      </div>
+                      {product.variants?.length > 0 ? (
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-50 rounded-lg">
+                            <tr>
+                              <th className="text-left px-3 py-2 text-[11px] font-semibold text-gray-500 uppercase rounded-l-lg">SKU</th>
+                              <th className="text-left px-3 py-2 text-[11px] font-semibold text-gray-500 uppercase">Thuộc tính</th>
+                              <th className="text-left px-3 py-2 text-[11px] font-semibold text-gray-500 uppercase">Giá vốn</th>
+                              <th className="text-left px-3 py-2 text-[11px] font-semibold text-gray-500 uppercase">Giá bán</th>
+                              <th className="text-left px-3 py-2 text-[11px] font-semibold text-gray-500 uppercase rounded-r-lg">Trạng thái</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {product.variants.map((v) => (
+                              <tr key={v.id} className="border-t border-gray-50">
+                                <td className="px-3 py-2.5 font-mono text-xs text-gray-600">{v.sku}</td>
+                                <td className="px-3 py-2.5 text-xs text-gray-500">
+                                  {Object.entries(v.attributes).map(([k, val]) => (
+                                    <span key={k} className="inline-block mr-2">
+                                      <span className="text-gray-400">{k}:</span> {val}
+                                    </span>
+                                  ))}
+                                </td>
+                                <td className="px-3 py-2.5 text-sm text-gray-600">{fmtMoney(v.costPrice)}</td>
+                                <td className="px-3 py-2.5 text-sm font-medium text-gray-700">{fmtMoney(v.sellingPrice)}</td>
+                                <td className="px-3 py-2.5">
+                                  <span className={`text-[11px] px-2 py-0.5 rounded-full border font-medium ${v.isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-gray-100 text-gray-400 border-gray-200'}`}>
+                                    {v.isActive ? 'Hoạt động' : 'Tắt'}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <p className="text-gray-300 text-sm text-center py-4">Chưa có biến thể nào</p>
                       )}
                     </div>
 
-                    {/* Mô tả */}
-                    <div>
-                      <label className={labelCls}>Mô tả sản phẩm</label>
-                      <textarea value={eDescription} onChange={(e) => setEDescription(e.target.value)}
-                        rows={3} placeholder="Mô tả chi tiết, thông số kỹ thuật..." className={inputCls} />
-                    </div>
-
-                    {/* Ghi chú */}
-                    <div>
-                      <label className={labelCls}>Ghi chú nội bộ</label>
-                      <textarea value={eNotes} onChange={(e) => setENotes(e.target.value)}
-                        rows={2} placeholder="Ghi chú chỉ dùng nội bộ..." className={inputCls} />
-                    </div>
-                  </div>
-                )}
-
-                {/* ── Tab: Biến thể ── */}
-                {tab === 'variants' && (
-                  <div>
-                    {product.variants?.length > 0 ? (
-                      <table className="w-full text-sm">
-                        <thead className="bg-gray-50 rounded-lg">
-                          <tr>
-                            <th className="text-left px-3 py-2 text-[11px] font-semibold text-gray-500 uppercase rounded-l-lg">SKU</th>
-                            <th className="text-left px-3 py-2 text-[11px] font-semibold text-gray-500 uppercase">Thuộc tính</th>
-                            <th className="text-left px-3 py-2 text-[11px] font-semibold text-gray-500 uppercase">Giá vốn</th>
-                            <th className="text-left px-3 py-2 text-[11px] font-semibold text-gray-500 uppercase">Giá bán</th>
-                            <th className="text-left px-3 py-2 text-[11px] font-semibold text-gray-500 uppercase rounded-r-lg">Trạng thái</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {product.variants.map((v) => (
-                            <tr key={v.id} className="border-t border-gray-50">
-                              <td className="px-3 py-2.5 font-mono text-xs text-gray-600">{v.sku}</td>
-                              <td className="px-3 py-2.5 text-xs text-gray-500">
-                                {Object.entries(v.attributes).map(([k, val]) => (
-                                  <span key={k} className="inline-block mr-2">
-                                    <span className="text-gray-400">{k}:</span> {val}
-                                  </span>
-                                ))}
-                              </td>
-                              <td className="px-3 py-2.5 text-sm text-gray-600">{fmtMoney(v.costPrice)}</td>
-                              <td className="px-3 py-2.5 text-sm font-medium text-gray-700">{fmtMoney(v.sellingPrice)}</td>
-                              <td className="px-3 py-2.5">
-                                <span className={`text-[11px] px-2 py-0.5 rounded-full border font-medium ${v.isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-gray-100 text-gray-400 border-gray-200'}`}>
-                                  {v.isActive ? 'Hoạt động' : 'Tắt'}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    ) : (
-                      <p className="text-gray-300 text-sm text-center py-8">Chưa có biến thể nào</p>
-                    )}
-                  </div>
-                )}
-
-                {/* ── Tab: Ảnh ── */}
-                {tab === 'images' && (
-                  <div>
-                    {product.images?.length > 0 ? (
-                      <div className="grid grid-cols-4 gap-3">
-                        {product.images.map((img) => (
-                          <div key={img.id} className={`relative rounded-xl overflow-hidden border-2 ${img.isMain ? 'border-blue-400' : 'border-gray-100'}`}>
-                            <img src={img.url} alt="" className="w-full h-28 object-cover" />
-                            {img.isMain && (
-                              <span className="absolute top-1.5 left-1.5 text-[10px] bg-blue-500 text-white px-2 py-0.5 rounded font-semibold">Chính</span>
-                            )}
-                          </div>
-                        ))}
+                    {/* ── Tên HĐ VAT (always visible) ── */}
+                    <div className="mt-6 pt-5 border-t border-gray-100">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                          Tên HĐ VAT
+                          {(product.invoiceNames?.length ?? 0) > 0 && (
+                            <span className="text-[11px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium">{product.invoiceNames.length}</span>
+                          )}
+                        </h3>
                       </div>
-                    ) : (
-                      <p className="text-gray-300 text-sm text-center py-8">Chưa có ảnh nào</p>
-                    )}
-                    <p className="text-xs text-gray-300 mt-3">Để quản lý ảnh (thêm/xóa/đặt ảnh chính), vào trang Chỉnh sửa sản phẩm</p>
-                  </div>
-                )}
-
-                {/* ── Tab: Tên HĐ VAT ── */}
-                {tab === 'invoice' && (
-                  <div>
-                    {product.invoiceNames?.length > 0 ? (
-                      <div className="space-y-2">
-                        {product.invoiceNames.map((inv) => (
-                          <div key={inv.id} className={`p-3 rounded-xl border ${inv.isDefault ? 'border-blue-200 bg-blue-50/50' : 'border-gray-100 bg-gray-50/50'}`}>
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-semibold text-sm text-gray-800">{inv.invoiceName}</span>
-                              {inv.isDefault && <span className="text-[10px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded font-medium">Mặc định</span>}
+                      {product.invoiceNames?.length > 0 ? (
+                        <div className="space-y-2">
+                          {product.invoiceNames.map((inv) => (
+                            <div key={inv.id} className={`p-3 rounded-xl border ${inv.isDefault ? 'border-blue-200 bg-blue-50/50' : 'border-gray-100 bg-gray-50/50'}`}>
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-semibold text-sm text-gray-800">{inv.invoiceName}</span>
+                                {inv.isDefault && <span className="text-[10px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded font-medium">Mặc định</span>}
+                              </div>
+                              {inv.invoiceUnit && <p className="text-xs text-gray-500">Đơn vị tính: <span className="font-medium">{inv.invoiceUnit}</span></p>}
+                              {inv.notes && <p className="text-xs text-gray-400 mt-0.5">{inv.notes}</p>}
                             </div>
-                            {inv.invoiceUnit && <p className="text-xs text-gray-500">Đơn vị tính: <span className="font-medium">{inv.invoiceUnit}</span></p>}
-                            {inv.notes && <p className="text-xs text-gray-400 mt-0.5">{inv.notes}</p>}
-                          </div>
-                        ))}
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-gray-300 text-sm text-center py-4">
+                          Chưa có tên hóa đơn nào
+                          {!isEditing && <span className="text-[11px] text-gray-300"> — dấu ★ trong danh sách SP sẽ hiện cảnh báo</span>}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* ── Ảnh sản phẩm (always visible) ── */}
+                    <div className="mt-6 pt-5 border-t border-gray-100">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                          Ảnh sản phẩm
+                          {(product.images?.length ?? 0) > 0 && (
+                            <span className="text-[11px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium">{product.images.length}</span>
+                          )}
+                        </h3>
                       </div>
-                    ) : (
-                      <div className="text-center py-8">
-                        <p className="text-gray-300 text-sm mb-2">Chưa có tên hóa đơn nào</p>
-                        <button onClick={startEditing}
-                          className="text-blue-500 text-xs hover:underline font-medium">
-                          + Thêm tên hóa đơn (vào trang chỉnh sửa)
-                        </button>
-                      </div>
-                    )}
+                      {product.images?.length > 0 ? (
+                        <div className="grid grid-cols-4 gap-3">
+                          {product.images.map((img) => (
+                            <div key={img.id} className={`relative rounded-xl overflow-hidden border-2 ${img.isMain ? 'border-blue-400' : 'border-gray-100'}`}>
+                              <img src={img.url} alt="" className="w-full h-28 object-cover" />
+                              {img.isMain && (
+                                <span className="absolute top-1.5 left-1.5 text-[10px] bg-blue-500 text-white px-2 py-0.5 rounded font-semibold">Chính</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-gray-300 text-sm text-center py-4">Chưa có ảnh nào</p>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -751,7 +762,7 @@ export default function ProductDetailPage() {
                   </span>
                 )}
               </div>
-              <button onClick={() => { setIsEditing(false); setTab('history'); }}
+              <button onClick={() => setTab('history')}
                 className="w-full mt-3 text-[11px] text-blue-500 hover:text-blue-600 font-medium text-center transition">
                 Xem lịch sử biến động →
               </button>
