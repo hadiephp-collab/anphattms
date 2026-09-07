@@ -466,7 +466,7 @@ export default function ProductsPage() {
     );
   }
 
-  async function setPriority(productId: number, value: number | null) {
+  async function setPriority(productId: number, value: number) {
     try {
       await productsApi.update(productId, { priority: value });
       setProducts((prev) => prev.map((p) => p.id === productId ? { ...p, priority: value } as Product : p));
@@ -522,7 +522,7 @@ export default function ProductsPage() {
               const cp = Math.min(p.priority ?? 0, 2);
               return [1, 2].map((star) => (
                 <button key={star}
-                  onClick={() => setPriority(p.id, cp === star ? null : star)}
+                  onClick={() => setPriority(p.id, cp === star ? 0 : star)}
                   title={cp >= star ? 'Bỏ ưu tiên' : `Đặt ${star} sao`}
                   className={`w-5 h-5 transition-colors ${cp >= star ? 'text-amber-400 hover:text-amber-500' : 'text-gray-200 hover:text-amber-300'}`}>
                   <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
