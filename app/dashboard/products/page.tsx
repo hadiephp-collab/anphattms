@@ -71,9 +71,9 @@ const TEXT_DISPLAY_COLS = new Set([
 ]);
 const NUMERIC_EDIT_FIELDS = new Set(['stockQuantity', 'costPriceCny', 'costPrice', 'sellingPrice', 'customsUsdPrice']);
 const STICKY_WIDTHS: Record<string, number> = {
-  code: 110, name: 200, image: 64, brand: 130, category: 130, unit: 80,
-  status: 110, stock: 100, sellingPrice: 120, costPrice: 110, costPriceCny: 120,
-  nameChinese: 140, nameEnglish: 140, variants: 80, supplierCode: 110, priority: 108,
+  code: 88, name: 160, image: 56, brand: 120, category: 120, unit: 72,
+  status: 104, stock: 88, sellingPrice: 110, costPrice: 100, costPriceCny: 110,
+  nameChinese: 130, nameEnglish: 130, variants: 72, supplierCode: 100, priority: 96,
 };
 
 const DEFAULT_DISPLAY: Record<string, 'truncate' | 'clamp' | 'wrap'> = {
