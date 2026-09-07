@@ -691,10 +691,10 @@ export default function ProductsPage() {
 
           {/* Table */}
           <div className="flex-1 overflow-auto min-h-0">
-            <table className="min-w-full text-sm border-collapse">
+            <table className="min-w-full text-sm" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
               <thead className="sticky top-0 z-10">
                 <tr className="bg-gray-50/80">
-                  <th className="w-10 pl-4 py-3 border-b border-gray-200">
+                  <th className="w-10 pl-4 py-3 border-b border-gray-200" style={{ position: 'sticky', left: 0, zIndex: 22, backgroundColor: 'rgb(249 250 251)' }}>
                     <input type="checkbox"
                       checked={products.length > 0 && selectedIds.size === products.length}
                       ref={(el) => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < products.length; }}
@@ -706,7 +706,7 @@ export default function ProductsPage() {
                     const left = stickyLeft[col.key];
                     if (left === undefined) return cell;
                     const orig = (cell as React.ReactElement<React.HTMLAttributes<HTMLElement>>).props.style || {};
-                    return React.cloneElement(cell as React.ReactElement<React.HTMLAttributes<HTMLElement>>, { style: { ...orig, position: 'sticky', left, zIndex: 11, background: 'rgb(249 250 251)', boxShadow: '2px 0 4px -2px rgba(0,0,0,0.08)', minWidth: STICKY_WIDTHS[col.key] ?? 130, width: STICKY_WIDTHS[col.key] ?? 130 } });
+                    return React.cloneElement(cell as React.ReactElement<React.HTMLAttributes<HTMLElement>>, { style: { ...orig, position: 'sticky', left, zIndex: 21, backgroundColor: 'rgb(249 250 251)', boxShadow: '2px 0 4px -2px rgba(0,0,0,0.08)', minWidth: STICKY_WIDTHS[col.key] ?? 130, width: STICKY_WIDTHS[col.key] ?? 130 } });
                   })}
                 </tr>
               </thead>
@@ -733,17 +733,20 @@ export default function ProductsPage() {
                 ) : products.map((p) => (
                   <tr key={p.id}
                     onClick={() => router.push(`/dashboard/products/${p.id}`)}
-                    className={`border-b border-gray-50 last:border-0 transition-colors cursor-pointer ${selectedIds.has(p.id) ? 'bg-blue-50/40' : 'hover:bg-blue-50/30'}`}>
-                    <td className="w-10 pl-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    className={`transition-colors cursor-pointer ${selectedIds.has(p.id) ? 'bg-blue-50/40' : 'hover:bg-blue-50/30'}`}>
+                    <td className="w-10 pl-4 py-3 border-b border-gray-50" style={{ position: 'sticky', left: 0, zIndex: 9, backgroundColor: selectedIds.has(p.id) ? '#eff6ff' : '#ffffff' }} onClick={(e) => e.stopPropagation()}>
                       <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleSelect(p.id)}
                         className="w-4 h-4 rounded border-gray-300 accent-blue-600 cursor-pointer" />
                     </td>
                     {visibleCols.map((col) => {
                       const cell = renderBodyCell(col.key, p);
                       const left = stickyLeft[col.key];
-                      if (left === undefined) return cell;
-                      const orig = (cell as React.ReactElement<React.HTMLAttributes<HTMLElement>>).props.style || {};
-                      return React.cloneElement(cell as React.ReactElement<React.HTMLAttributes<HTMLElement>>, { style: { ...orig, position: 'sticky', left, zIndex: 9, background: selectedIds.has(p.id) ? '#eff6ff' : 'white', boxShadow: '2px 0 4px -2px rgba(0,0,0,0.06)', minWidth: STICKY_WIDTHS[col.key] ?? 130, width: STICKY_WIDTHS[col.key] ?? 130, overflow: 'hidden' } });
+                      const cellEl = cell as React.ReactElement<React.HTMLAttributes<HTMLElement>>;
+                      const orig = cellEl.props.style || {};
+                      const rowBorder = { borderBottom: '1px solid rgb(249 250 251)' };
+                      if (left === undefined) return React.cloneElement(cellEl, { style: { ...orig, ...rowBorder } });
+                      const w = STICKY_WIDTHS[col.key] ?? 130;
+                      return React.cloneElement(cellEl, { style: { ...orig, position: 'sticky', left, zIndex: 9, backgroundColor: selectedIds.has(p.id) ? '#eff6ff' : '#ffffff', boxShadow: '2px 0 4px -2px rgba(0,0,0,0.06)', minWidth: w, width: w, ...rowBorder } });
                     })}
                   </tr>
                 ))}
