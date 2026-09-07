@@ -291,10 +291,10 @@ export default function ProductsPage() {
 
   const thBase = 'text-left px-4 py-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider border-b border-gray-200 whitespace-nowrap';
 
-  function SortTh({ label, field, k }: { label: string; field: string; k: string }) {
+  function SortTh({ label, field, k, style }: { label: string; field: string; k: string; style?: React.CSSProperties }) {
     const active = sortBy === field;
     return (
-      <th key={k} onClick={() => handleSort(field)}
+      <th key={k} onClick={() => handleSort(field)} style={style}
         className={`${thBase} cursor-pointer select-none hover:text-gray-800 group`}>
         <div className="flex items-center gap-1">
           {label}
@@ -744,7 +744,7 @@ export default function ProductsPage() {
                       const cellEl = cell as React.ReactElement<React.HTMLAttributes<HTMLElement>>;
                       const orig = cellEl.props.style || {};
                       const rowBorder = { borderBottom: '1px solid rgb(249 250 251)' };
-                      if (left === undefined) return React.cloneElement(cellEl, { style: { ...orig, ...rowBorder } });
+                      if (left === undefined) return React.cloneElement(cellEl, { style: { ...orig, ...rowBorder, position: 'relative', zIndex: 0 } });
                       const w = STICKY_WIDTHS[col.key] ?? 130;
                       return React.cloneElement(cellEl, { style: { ...orig, position: 'sticky', left, zIndex: 9, backgroundColor: selectedIds.has(p.id) ? '#eff6ff' : '#ffffff', boxShadow: '2px 0 4px -2px rgba(0,0,0,0.06)', minWidth: w, width: w, ...rowBorder } });
                     })}
