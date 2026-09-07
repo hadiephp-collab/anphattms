@@ -135,8 +135,11 @@ export default function ProductsPage() {
   const [search, setSearch] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [filterStatus, setFilterStatus] = useState('true');
-  const [sortBy, setSortBy] = useState('createdAt');
+  const [sortBy, setSortBy] = useState('priority');
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
+  const [hoveredRow, setHoveredRow] = useState<number | null>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const savedScrollLeft = useRef(0);
   const [colOrder, setColOrder] = useState<ColItem[]>(defaultColOrder());
   const [showColSettings, setShowColSettings] = useState(false);
   const [bulkMenuOpen, setBulkMenuOpen] = useState(false);
@@ -258,10 +261,19 @@ export default function ProductsPage() {
   useEffect(() => { load(); }, [load]);
 
   function handleSort(field: string) {
+    savedScrollLeft.current = tableScrollRef.current?.scrollLeft ?? 0;
     setPage(1);
     if (sortBy === field) setSortOrder((o) => (o === 'ASC' ? 'DESC' : 'ASC'));
     else { setSortBy(field); setSortOrder('DESC'); }
   }
+
+  useEffect(() => {
+    if (!loading && savedScrollLeft.current > 0) {
+      requestAnimationFrame(() => {
+        if (tableScrollRef.current) tableScrollRef.current.scrollLeft = savedScrollLeft.current;
+      });
+    }
+  }, [loading]);
 
   async function handleDelete(id: number) {
     if (!confirm('Xác nhận xóa sản phẩm này?')) return;
@@ -505,17 +517,20 @@ export default function ProductsPage() {
       case 'barcode': return renderTextCell(key, p.barcode, 'Mã vạch', p.id, 'font-mono text-[11px] text-gray-500');
       case 'priority': return (
         <td key={key} className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center gap-0.5">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <button key={star}
-                onClick={() => setPriority(p.id, p.priority === star ? null : star)}
-                title={p.priority === star ? 'Bỏ ưu tiên' : `${star} sao`}
-                className={`w-4 h-4 transition-colors ${(p.priority ?? 0) >= star ? 'text-amber-400 hover:text-amber-500' : 'text-gray-200 hover:text-amber-300'}`}>
-                <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                </svg>
-              </button>
-            ))}
+          <div className="flex items-center gap-1">
+            {(() => {
+              const cp = Math.min(p.priority ?? 0, 2);
+              return [1, 2].map((star) => (
+                <button key={star}
+                  onClick={() => setPriority(p.id, cp === star ? null : star)}
+                  title={cp >= star ? 'Bỏ ưu tiên' : `Đặt ${star} sao`}
+                  className={`w-5 h-5 transition-colors ${cp >= star ? 'text-amber-400 hover:text-amber-500' : 'text-gray-200 hover:text-amber-300'}`}>
+                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                </button>
+              ));
+            })()}
           </div>
         </td>
       );
@@ -690,7 +705,7 @@ export default function ProductsPage() {
           </div>
 
           {/* Table */}
-          <div className="flex-1 overflow-auto min-h-0" style={{ isolation: 'isolate' }}>
+          <div ref={tableScrollRef} className="flex-1 overflow-auto min-h-0" style={{ isolation: 'isolate' }}>
             <table className="min-w-full text-sm" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
               <thead className="sticky top-0 z-10">
                 <tr className="bg-gray-50/80">
@@ -730,11 +745,15 @@ export default function ProductsPage() {
                     <button onClick={() => router.push('/dashboard/products/new')}
                       className="mt-2 text-blue-500 text-xs hover:underline font-medium">+ Thêm sản phẩm đầu tiên</button>
                   </td></tr>
-                ) : products.map((p) => (
+                ) : products.map((p) => {
+                  const rowBg = selectedIds.has(p.id) ? '#dbeafe' : hoveredRow === p.id ? '#f0f9ff' : '#ffffff';
+                  return (
                   <tr key={p.id}
                     onClick={() => router.push(`/dashboard/products/${p.id}`)}
-                    className={`transition-colors cursor-pointer ${selectedIds.has(p.id) ? 'bg-blue-50/40' : 'hover:bg-blue-50/30'}`}>
-                    <td className="w-10 pl-4 py-3 border-b border-gray-50" style={{ position: 'sticky', left: 0, zIndex: 9, backgroundColor: selectedIds.has(p.id) ? '#eff6ff' : '#ffffff' }} onClick={(e) => e.stopPropagation()}>
+                    onMouseEnter={() => setHoveredRow(p.id)}
+                    onMouseLeave={() => setHoveredRow(null)}
+                    className="transition-colors cursor-pointer">
+                    <td className="w-10 pl-4 py-3 border-b border-gray-50" style={{ position: 'sticky', left: 0, zIndex: 9, backgroundColor: rowBg }} onClick={(e) => e.stopPropagation()}>
                       <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleSelect(p.id)}
                         className="w-4 h-4 rounded border-gray-300 accent-blue-600 cursor-pointer" />
                     </td>
@@ -744,12 +763,13 @@ export default function ProductsPage() {
                       const cellEl = cell as React.ReactElement<React.HTMLAttributes<HTMLElement>>;
                       const orig = cellEl.props.style || {};
                       const rowBorder = { borderBottom: '1px solid rgb(249 250 251)' };
-                      if (left === undefined) return React.cloneElement(cellEl, { style: { ...orig, ...rowBorder, position: 'relative', zIndex: 0, backgroundColor: selectedIds.has(p.id) ? '#eff6ff' : '#ffffff' } });
+                      if (left === undefined) return React.cloneElement(cellEl, { style: { ...orig, ...rowBorder, position: 'relative', zIndex: 0, backgroundColor: rowBg } });
                       const w = STICKY_WIDTHS[col.key] ?? 130;
-                      return React.cloneElement(cellEl, { style: { ...orig, position: 'sticky', left, zIndex: 9, backgroundColor: selectedIds.has(p.id) ? '#eff6ff' : '#ffffff', boxShadow: '2px 0 4px -2px rgba(0,0,0,0.06)', minWidth: w, width: w, ...rowBorder } });
+                      return React.cloneElement(cellEl, { style: { ...orig, position: 'sticky', left, zIndex: 9, backgroundColor: rowBg, boxShadow: '2px 0 4px -2px rgba(0,0,0,0.06)', minWidth: w, width: w, ...rowBorder } });
                     })}
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
