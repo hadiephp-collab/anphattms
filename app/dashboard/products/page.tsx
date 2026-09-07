@@ -690,7 +690,7 @@ export default function ProductsPage() {
           </div>
 
           {/* Table */}
-          <div className="flex-1 overflow-auto min-h-0">
+          <div className="flex-1 overflow-auto min-h-0" style={{ isolation: 'isolate' }}>
             <table className="min-w-full text-sm" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
               <thead className="sticky top-0 z-10">
                 <tr className="bg-gray-50/80">
@@ -744,7 +744,7 @@ export default function ProductsPage() {
                       const cellEl = cell as React.ReactElement<React.HTMLAttributes<HTMLElement>>;
                       const orig = cellEl.props.style || {};
                       const rowBorder = { borderBottom: '1px solid rgb(249 250 251)' };
-                      if (left === undefined) return React.cloneElement(cellEl, { style: { ...orig, ...rowBorder, position: 'relative', zIndex: 0 } });
+                      if (left === undefined) return React.cloneElement(cellEl, { style: { ...orig, ...rowBorder, position: 'relative', zIndex: 0, backgroundColor: selectedIds.has(p.id) ? '#eff6ff' : '#ffffff' } });
                       const w = STICKY_WIDTHS[col.key] ?? 130;
                       return React.cloneElement(cellEl, { style: { ...orig, position: 'sticky', left, zIndex: 9, backgroundColor: selectedIds.has(p.id) ? '#eff6ff' : '#ffffff', boxShadow: '2px 0 4px -2px rgba(0,0,0,0.06)', minWidth: w, width: w, ...rowBorder } });
                     })}
