@@ -162,6 +162,7 @@ export default function ProductsPage() {
   const [showImport, setShowImport] = useState(false);
   const [expandedCell, setExpandedCell] = useState<{ label: string; text: string } | null>(null);
   const [editingCell, setEditingCell] = useState<{ id: number; field: string; value: string } | null>(null);
+  const [variantEditCell, setVariantEditCell] = useState<{ productId: number; variantId: number; field: string; value: string } | null>(null);
   const [filterPriority, setFilterPriority] = useState('');
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
   const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
@@ -282,6 +283,27 @@ export default function ProductsPage() {
     } catch { /* silent */ }
   }
 
+  async function saveVariantEdit() {
+    if (!variantEditCell) return;
+    const { productId, variantId, field, value } = variantEditCell;
+    setVariantEditCell(null);
+    const numFields = new Set(['costPrice', 'sellingPrice']);
+    const parsed = numFields.has(field)
+      ? (value.trim() === '' ? null : Number(value))
+      : (value?.trim() || null);
+    try {
+      await productsApi.updateVariant(productId, variantId, { [field]: parsed });
+      setProducts((prev) => prev.map((p) =>
+        p.id !== productId ? p : {
+          ...p,
+          variants: p.variants?.map((vr) =>
+            vr.id !== variantId ? vr : { ...vr, [field]: parsed } as Variant
+          ),
+        }
+      ));
+    } catch { /* silent */ }
+  }
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -351,7 +373,7 @@ export default function ProductsPage() {
 
   const thBase = 'text-left px-4 py-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider border-b border-gray-200 whitespace-nowrap';
 
-  function SortTh({ label, field, k, style }: { label: string; field: string; k: string; style?: React.CSSProperties }) {
+  function SortTh({ label, field, k, style, children }: { label: string; field: string; k: string; style?: React.CSSProperties; children?: React.ReactNode }) {
     const active = sortBy === field;
     return (
       <th key={k} onClick={() => handleSort(field)} style={style}
@@ -363,6 +385,7 @@ export default function ProductsPage() {
             <svg className={`w-2.5 h-2.5 ${active && sortOrder === 'DESC' ? 'opacity-100' : 'opacity-40'}`} viewBox="0 0 10 6" fill="currentColor"><path d="M5 6L0 0H10L5 6z" /></svg>
           </span>
         </div>
+        {children}
       </th>
     );
   }
@@ -529,14 +552,40 @@ export default function ProductsPage() {
     });
   }
 
-  function renderVariantCell(key: string, v: Variant) {
+  function renderVariantCell(key: string, v: Variant, productId: number) {
     const tdBase = 'px-4 py-1 text-xs text-gray-400 whitespace-nowrap';
+    const isEditing = (field: string) => variantEditCell?.variantId === v.id && variantEditCell?.field === field;
+    const startEdit = (field: string, value: string) =>
+      setVariantEditCell({ productId, variantId: v.id, field, value });
+    const editInput = (field: string, type: 'text' | 'number' = 'text') => (
+      <input
+        autoFocus
+        type={type}
+        value={variantEditCell?.value ?? ''}
+        onChange={(e) => setVariantEditCell((prev) => prev ? { ...prev, value: e.target.value } : null)}
+        onKeyDown={(e) => { if (e.key === 'Enter') saveVariantEdit(); if (e.key === 'Escape') setVariantEditCell(null); }}
+        onBlur={saveVariantEdit}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full text-xs border border-blue-400 rounded px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-blue-400 bg-white"
+      />
+    );
+
     switch (key) {
       case 'code': return (
-        <td key={key} className="px-3 py-1">
+        <td key={key} className="px-3 py-1" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center gap-1.5 pl-4">
             <span className="text-gray-300 text-xs leading-none flex-shrink-0">└</span>
-            <span className="font-mono text-[10px] bg-violet-50 text-violet-500 px-1.5 py-0.5 rounded border border-violet-100 tracking-wide leading-tight">{v.sku}</span>
+            {isEditing('sku') ? (
+              <div className="min-w-[80px]">{editInput('sku')}</div>
+            ) : (
+              <span
+                onClick={() => startEdit('sku', v.sku)}
+                title="Click để sửa SKU"
+                className="font-mono text-[10px] bg-violet-50 text-violet-500 px-1.5 py-0.5 rounded border border-violet-100 tracking-wide leading-tight cursor-pointer hover:bg-violet-100 transition-colors"
+              >
+                {v.sku}
+              </span>
+            )}
           </div>
         </td>
       );
@@ -551,25 +600,77 @@ export default function ProductsPage() {
       );
       case 'image': return <td key={key} className="px-2 py-1"><div className="w-7 h-7" /></td>;
       case 'costPrice': return (
-        <td key={key} className={`${tdBase} text-right`}>
-          {v.costPrice != null ? <span className="text-gray-400">{Number(v.costPrice).toLocaleString('vi-VN')}đ</span> : <span className="text-gray-200">—</span>}
+        <td key={key} className={`${tdBase} text-right`} onClick={(e) => e.stopPropagation()}>
+          {isEditing('costPrice') ? (
+            <div className="min-w-[80px] text-left">{editInput('costPrice', 'number')}</div>
+          ) : (
+            <span
+              onClick={() => startEdit('costPrice', v.costPrice != null ? String(v.costPrice) : '')}
+              title="Click để sửa giá vốn"
+              className="cursor-pointer hover:text-gray-600 transition-colors"
+            >
+              {v.costPrice != null
+                ? `${Number(v.costPrice).toLocaleString('vi-VN')}đ`
+                : <span className="text-gray-300 text-[10px] italic">+ giá vốn</span>}
+            </span>
+          )}
         </td>
       );
       case 'sellingPrice': return (
-        <td key={key} className={`${tdBase} text-right`}>
-          {v.sellingPrice != null ? <span className="text-blue-400 font-medium">{Number(v.sellingPrice).toLocaleString('vi-VN')}</span> : <span className="text-gray-200">—</span>}
+        <td key={key} className={`${tdBase} text-right`} onClick={(e) => e.stopPropagation()}>
+          {isEditing('sellingPrice') ? (
+            <div className="min-w-[80px] text-left">{editInput('sellingPrice', 'number')}</div>
+          ) : (
+            <span
+              onClick={() => startEdit('sellingPrice', v.sellingPrice != null ? String(v.sellingPrice) : '')}
+              title="Click để sửa giá bán"
+              className="cursor-pointer hover:text-blue-500 transition-colors"
+            >
+              {v.sellingPrice != null
+                ? <span className="text-blue-400 font-medium">{Number(v.sellingPrice).toLocaleString('vi-VN')}</span>
+                : <span className="text-gray-300 text-[10px] italic">+ giá bán</span>}
+            </span>
+          )}
         </td>
       );
       case 'barcode': return (
-        <td key={key} className="px-4 py-1">
-          <span className="font-mono text-[10px] text-gray-400">{v.barcode || <span className="text-gray-200">—</span>}</span>
+        <td key={key} className="px-4 py-1" onClick={(e) => e.stopPropagation()}>
+          {isEditing('barcode') ? (
+            <div className="min-w-[100px]">{editInput('barcode')}</div>
+          ) : (
+            <span
+              onClick={() => startEdit('barcode', v.barcode || '')}
+              title="Click để sửa mã vạch"
+              className="font-mono text-[10px] text-gray-400 cursor-pointer hover:text-gray-600 transition-colors"
+            >
+              {v.barcode || <span className="text-gray-300 italic">+ mã vạch</span>}
+            </span>
+          )}
         </td>
       );
       case 'status': return (
-        <td key={key} className="px-4 py-1">
-          {v.isActive
-            ? <span className="text-[10px] bg-emerald-50 text-emerald-500 border border-emerald-100 px-1.5 py-0.5 rounded-full">Hoạt động</span>
-            : <span className="text-[10px] bg-gray-50 text-gray-400 border border-gray-200 px-1.5 py-0.5 rounded-full">Ngừng</span>}
+        <td key={key} className="px-4 py-1" onClick={(e) => e.stopPropagation()}>
+          <button
+            title={v.isActive ? 'Click để ngừng' : 'Click để kích hoạt'}
+            className="group"
+            onClick={async () => {
+              try {
+                await productsApi.updateVariant(productId, v.id, { isActive: !v.isActive });
+                setProducts((prev) => prev.map((p) =>
+                  p.id !== productId ? p : {
+                    ...p,
+                    variants: p.variants?.map((vr) =>
+                      vr.id !== v.id ? vr : { ...vr, isActive: !vr.isActive }
+                    ),
+                  }
+                ));
+              } catch { /* silent */ }
+            }}
+          >
+            {v.isActive
+              ? <span className="text-[10px] bg-emerald-50 text-emerald-500 border border-emerald-100 px-1.5 py-0.5 rounded-full group-hover:bg-red-50 group-hover:text-red-400 group-hover:border-red-100 transition-colors">Hoạt động</span>
+              : <span className="text-[10px] bg-gray-50 text-gray-400 border border-gray-200 px-1.5 py-0.5 rounded-full group-hover:bg-emerald-50 group-hover:text-emerald-500 group-hover:border-emerald-100 transition-colors">Ngừng</span>}
+          </button>
         </td>
       );
       default: return <td key={key} className="px-4 py-1"><span className="text-gray-200 text-[10px]">—</span></td>;
@@ -909,7 +1010,7 @@ export default function ProductsPage() {
                       <td className="w-10 pl-4 py-1 border-b border-violet-100/60"
                         style={{ position: 'sticky', left: 0, zIndex: 9, backgroundColor: varBg, borderLeft: '3px solid #ddd6fe' }} />
                       {visibleCols.map((col) => {
-                        const cell = renderVariantCell(col.key, v);
+                        const cell = renderVariantCell(col.key, v, p.id);
                         const left = stickyLeft[col.key];
                         const cellEl = cell as React.ReactElement<React.HTMLAttributes<HTMLElement>>;
                         const orig = cellEl.props.style || {};
