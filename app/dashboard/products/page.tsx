@@ -287,17 +287,32 @@ export default function ProductsPage() {
     if (!variantEditCell) return;
     const { productId, variantId, field, value } = variantEditCell;
     setVariantEditCell(null);
-    const numFields = new Set(['costPrice', 'sellingPrice']);
-    const parsed = numFields.has(field)
-      ? (value.trim() === '' ? null : Number(value))
-      : (value?.trim() || null);
+    let payload: Record<string, unknown>;
+    if (field === 'attributes') {
+      const origVariant = products.find((p) => p.id === productId)?.variants?.find((vr) => vr.id === variantId);
+      const origKeys = Object.keys(origVariant?.attributes || {});
+      const parts = value.split(' · ').map((s) => s.trim()).filter(Boolean);
+      const newAttrs: Record<string, string> = {};
+      if (origKeys.length > 0) {
+        origKeys.forEach((k, i) => { newAttrs[k] = parts[i] ?? ''; });
+      } else {
+        parts.forEach((val, i) => { newAttrs[`attr${i + 1}`] = val; });
+      }
+      payload = { attributes: newAttrs };
+    } else {
+      const numFields = new Set(['costPrice', 'sellingPrice']);
+      const parsed = numFields.has(field)
+        ? (value.trim() === '' ? null : Number(value))
+        : (value?.trim() || null);
+      payload = { [field]: parsed };
+    }
     try {
-      await productsApi.updateVariant(productId, variantId, { [field]: parsed });
+      await productsApi.updateVariant(productId, variantId, payload);
       setProducts((prev) => prev.map((p) =>
         p.id !== productId ? p : {
           ...p,
           variants: p.variants?.map((vr) =>
-            vr.id !== variantId ? vr : { ...vr, [field]: parsed } as Variant
+            vr.id !== variantId ? vr : { ...vr, ...payload } as Variant
           ),
         }
       ));
@@ -581,7 +596,7 @@ export default function ProductsPage() {
               <span
                 onClick={() => startEdit('sku', v.sku)}
                 title="Click để sửa SKU"
-                className="font-mono text-[10px] bg-violet-50 text-violet-500 px-1.5 py-0.5 rounded border border-violet-100 tracking-wide leading-tight cursor-pointer hover:bg-violet-100 transition-colors"
+                className="font-mono text-[10px] bg-blue-50 text-blue-500 px-1.5 py-0.5 rounded border border-blue-100 tracking-wide leading-tight cursor-pointer hover:bg-blue-100 transition-colors"
               >
                 {v.sku}
               </span>
@@ -590,12 +605,22 @@ export default function ProductsPage() {
         </td>
       );
       case 'name': return (
-        <td key={key} className="px-4 py-1 max-w-[200px]">
-          {Object.keys(v.attributes || {}).length > 0
-            ? <span className="text-[11px] text-gray-400 truncate block">
+        <td key={key} className="px-4 py-1 max-w-[200px]" onClick={(e) => e.stopPropagation()}>
+          {isEditing('attributes') ? (
+            <div className="min-w-[120px]">{editInput('attributes')}</div>
+          ) : Object.keys(v.attributes || {}).length > 0
+            ? <span
+                onClick={() => startEdit('attributes', Object.entries(v.attributes).map(([, val]) => val).join(' · '))}
+                title="Click để sửa thuộc tính"
+                className="text-[11px] text-gray-400 truncate block cursor-pointer hover:text-gray-600 transition-colors"
+              >
                 {Object.entries(v.attributes).map(([, val]) => val).join(' · ')}
               </span>
-            : <span className="text-gray-200 text-[10px] italic">—</span>}
+            : <span
+                onClick={() => startEdit('attributes', '')}
+                title="Click để thêm thuộc tính"
+                className="text-gray-300 text-[10px] italic cursor-pointer hover:text-gray-500 transition-colors"
+              >+ thuộc tính</span>}
         </td>
       );
       case 'image': return <td key={key} className="px-2 py-1"><div className="w-7 h-7" /></td>;
@@ -610,7 +635,7 @@ export default function ProductsPage() {
               className="cursor-pointer hover:text-gray-600 transition-colors"
             >
               {v.costPrice != null
-                ? `${Number(v.costPrice).toLocaleString('vi-VN')}đ`
+                ? Number(v.costPrice).toLocaleString('vi-VN')
                 : <span className="text-gray-300 text-[10px] italic">+ giá vốn</span>}
             </span>
           )}
@@ -700,7 +725,7 @@ export default function ProductsPage() {
           <div className="flex items-center gap-1">
             <button
               onClick={(e) => { e.stopPropagation(); if (p.hasVariants) toggleExpand(p.id); }}
-              className={`w-4 h-4 flex-shrink-0 transition-all ${p.hasVariants ? 'text-gray-400 hover:text-violet-500 cursor-pointer' : 'text-transparent cursor-default'}`}
+              className={`w-4 h-4 flex-shrink-0 transition-all ${p.hasVariants ? 'text-gray-400 hover:text-blue-500 cursor-pointer' : 'text-transparent cursor-default'}`}
               tabIndex={p.hasVariants ? 0 : -1}
               title={p.hasVariants ? (expandedIds.has(p.id) ? 'Thu gọn biến thể' : 'Xem biến thể') : undefined}
             >
@@ -709,7 +734,21 @@ export default function ProductsPage() {
                 <path fillRule="evenodd" d="M7.293 4.707 14.586 12l-7.293 7.293 1.414 1.414L17.414 12 8.707 3.293 7.293 4.707z" clipRule="evenodd" />
               </svg>
             </button>
-            <span className="font-mono text-[11px] bg-emerald-50 text-emerald-600 px-2 py-1 rounded-md tracking-wide">{p.code}</span>
+            {editingCell?.id === p.id && editingCell?.field === 'code'
+              ? <input
+                  autoFocus
+                  value={editingCell.value}
+                  onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
+                  onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditingCell(null); }}
+                  onBlur={saveEdit}
+                  onClick={(e) => e.stopPropagation()}
+                  className="font-mono text-[11px] w-24 border border-blue-400 rounded-md px-2 py-0.5 outline-none focus:ring-1 focus:ring-blue-400 bg-white tracking-wide"
+                />
+              : <span
+                  onClick={(e) => { e.stopPropagation(); setEditingCell({ id: p.id, field: 'code', value: p.code }); }}
+                  title="Click để sửa mã hàng"
+                  className="font-mono text-[11px] bg-emerald-50 text-emerald-600 px-2 py-1 rounded-md tracking-wide cursor-pointer hover:bg-emerald-100 transition-colors"
+                >{p.code}</span>}
           </div>
         </td>
       );
@@ -720,9 +759,9 @@ export default function ProductsPage() {
       case 'category': return renderTextCell(key, p.category, 'Danh mục', p.id);
       case 'unit':     return renderTextCell(key, p.unit, 'ĐVT', p.id);
       case 'costPriceCny': return renderNumericCell(key, 'costPriceCny', p.costPriceCny, 'Giá nhập ¥', p.id, (v) => Number(v).toLocaleString('vi-VN'), 'text-amber-600');
-      case 'costPrice':    return renderNumericCell(key, 'costPrice', p.costPrice, 'Giá vốn', p.id, (v) => Number(v).toLocaleString('vi-VN') + 'đ', 'text-gray-500');
+      case 'costPrice':    return renderNumericCell(key, 'costPrice', p.costPrice, 'Giá vốn', p.id, (v) => Number(v).toLocaleString('vi-VN'), 'text-gray-500');
       case 'sellingPrice': return renderNumericCell(key, 'sellingPrice', p.sellingPrice, 'Giá bán', p.id, (v) => Number(v).toLocaleString('vi-VN'));
-      case 'supplierCode': return renderTextCell(key, p.supplierCode, 'Mã NCC', p.id, 'font-mono text-[11px] text-gray-500');
+      case 'supplierCode': return renderTextCell(key, p.supplierCode, 'Mã NCC', p.id, 'font-mono text-gray-500');
       case 'packagingInfo': return renderTextCell(key, p.packagingInfo, 'Đóng gói', p.id);
       case 'stock': return renderNumericCell(key, 'stockQuantity', p.stockQuantity, 'Tồn kho', p.id, (v) => Number(v).toLocaleString());
       case 'warehouseLocation': return renderTextCell(key, p.warehouseLocation, 'Vị trí kho', p.id);
@@ -730,7 +769,7 @@ export default function ProductsPage() {
       case 'customsName': return renderTextCell(key, p.customsName, 'Tên khai HQ', p.id);
       case 'customsUsdPrice': return renderNumericCell(key, 'customsUsdPrice', p.customsUsdPrice, 'Giá USD HQ', p.id, (v) => `$${Number(v).toFixed(2)}`, 'text-green-600');
       case 'customsDescription': return renderTextCell(key, p.customsDescription, 'Mô tả khai HQ', p.id, 'text-gray-400');
-      case 'importNotes': return renderTextCell(key, p.importNotes, 'Lưu ý nhập hàng', p.id, 'text-gray-400');
+      case 'importNotes': return renderTextCell(key, p.importNotes, 'Lưu ý nhập hàng', p.id, 'text-gray-600');
       case 'barcode': return renderTextCell(key, p.barcode, 'Mã vạch', p.id, 'font-mono text-[11px] text-gray-500');
       case 'priority': return (
         <td key={key} className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
@@ -754,7 +793,7 @@ export default function ProductsPage() {
       case 'variants': return (
         <td key={key} className="px-4 py-3">
           {p.hasVariants
-            ? <span className="inline-flex items-center gap-1 text-[11px] bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full border border-purple-100 font-medium">
+            ? <span className="inline-flex items-center gap-1 text-[11px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full border border-blue-100 font-medium">
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
                 {p.variants?.length || 0}
               </span>
@@ -982,7 +1021,7 @@ export default function ProductsPage() {
                 ) : products.map((p) => {
                   const rowBg = selectedIds.has(p.id) ? '#dbeafe' : hoveredRow === p.id ? '#f0f9ff' : '#ffffff';
                   const isExpanded = expandedIds.has(p.id);
-                  const varBg = '#f7f5ff';
+                  const varBg = '#eff6ff';
                   return (
                   <React.Fragment key={p.id}>
                   <tr
@@ -999,7 +1038,7 @@ export default function ProductsPage() {
                       const left = stickyLeft[col.key];
                       const cellEl = cell as React.ReactElement<React.HTMLAttributes<HTMLElement>>;
                       const orig = cellEl.props.style || {};
-                      const rowBorder = { borderBottom: isExpanded ? '1px solid #ede9fe' : '1px solid rgb(249 250 251)' };
+                      const rowBorder = { borderBottom: isExpanded ? '1px solid #dbeafe' : '1px solid rgb(249 250 251)' };
                       if (left === undefined) return React.cloneElement(cellEl, { style: { ...orig, ...rowBorder, position: 'relative', zIndex: 0, backgroundColor: rowBg } });
                       const w = colWidths[col.key] ?? DEFAULT_COL_WIDTHS[col.key] ?? 130;
                       return React.cloneElement(cellEl, { style: { ...orig, position: 'sticky', left, zIndex: 9, backgroundColor: rowBg, boxShadow: '2px 0 4px -2px rgba(0,0,0,0.06)', minWidth: w, width: w, ...rowBorder } });
@@ -1007,14 +1046,14 @@ export default function ProductsPage() {
                   </tr>
                   {isExpanded && (p.variants || []).map((v) => (
                     <tr key={`var-${v.id}`} onClick={(e) => e.stopPropagation()}>
-                      <td className="w-10 pl-4 py-1 border-b border-violet-100/60"
-                        style={{ position: 'sticky', left: 0, zIndex: 9, backgroundColor: varBg, borderLeft: '3px solid #ddd6fe' }} />
+                      <td className="w-10 pl-4 py-1 border-b border-blue-100"
+                        style={{ position: 'sticky', left: 0, zIndex: 9, backgroundColor: varBg, borderLeft: '3px solid #bfdbfe' }} />
                       {visibleCols.map((col) => {
                         const cell = renderVariantCell(col.key, v, p.id);
                         const left = stickyLeft[col.key];
                         const cellEl = cell as React.ReactElement<React.HTMLAttributes<HTMLElement>>;
                         const orig = cellEl.props.style || {};
-                        const vBorder = { borderBottom: '1px solid #ede9fe' };
+                        const vBorder = { borderBottom: '1px solid #dbeafe' };
                         if (left === undefined) return React.cloneElement(cellEl, { key: col.key, style: { ...orig, ...vBorder, position: 'relative', zIndex: 0, backgroundColor: varBg } });
                         const w = colWidths[col.key] ?? DEFAULT_COL_WIDTHS[col.key] ?? 130;
                         return React.cloneElement(cellEl, { key: col.key, style: { ...orig, position: 'sticky', left, zIndex: 9, backgroundColor: varBg, boxShadow: '2px 0 4px -2px rgba(0,0,0,0.04)', minWidth: w, width: w, ...vBorder } });
