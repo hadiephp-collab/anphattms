@@ -81,6 +81,15 @@ const STICKY_WIDTHS: Record<string, number> = {
   status: 104, stock: 88, sellingPrice: 110, costPrice: 100, costPriceCny: 110,
   nameChinese: 130, nameEnglish: 130, variants: 72, supplierCode: 100, priority: 96,
 };
+const DEFAULT_COL_WIDTHS: Record<string, number> = {
+  code: 120, name: 180, image: 60, nameChinese: 140, nameEnglish: 140,
+  brand: 130, category: 130, unit: 76, costPriceCny: 115, costPrice: 106,
+  sellingPrice: 110, supplierCode: 110, packagingInfo: 130, stock: 96,
+  warehouseLocation: 130, hsCode: 100, customsName: 140, customsUsdPrice: 110,
+  customsDescription: 160, importNotes: 160, barcode: 140, priority: 96,
+  variants: 76, status: 110,
+};
+const COL_WIDTHS_KEY = 'products_col_widths_v1';
 
 const DEFAULT_DISPLAY: Record<string, 'truncate' | 'clamp' | 'wrap'> = {
   name: 'truncate',
@@ -155,6 +164,13 @@ export default function ProductsPage() {
   const [editingCell, setEditingCell] = useState<{ id: number; field: string; value: string } | null>(null);
   const [filterPriority, setFilterPriority] = useState('');
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem(COL_WIDTHS_KEY);
+      if (saved) return { ...DEFAULT_COL_WIDTHS, ...JSON.parse(saved) };
+    } catch {}
+    return { ...DEFAULT_COL_WIDTHS };
+  });
   const bulkMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setColOrder(loadColOrder()); }, []);
@@ -173,10 +189,35 @@ export default function ProductsPage() {
     const r: Record<string, number> = {};
     let left = 40;
     for (const col of visibleCols) {
-      if (col.pinned) { r[col.key] = left; left += STICKY_WIDTHS[col.key] ?? 130; }
+      if (col.pinned) { r[col.key] = left; left += colWidths[col.key] ?? DEFAULT_COL_WIDTHS[col.key] ?? 130; }
     }
     return r;
   })();
+
+  function onResizeMouseDown(e: React.MouseEvent, colKey: string) {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startW = colWidths[colKey] ?? DEFAULT_COL_WIDTHS[colKey] ?? 100;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    function onMove(ev: MouseEvent) {
+      const newW = Math.max(50, startW + ev.clientX - startX);
+      setColWidths((prev) => {
+        const next = { ...prev, [colKey]: newW };
+        try { localStorage.setItem(COL_WIDTHS_KEY, JSON.stringify(next)); } catch {}
+        return next;
+      });
+    }
+    function onUp() {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
 
   async function handleExport() {
     setExporting(true);
@@ -489,55 +530,49 @@ export default function ProductsPage() {
   }
 
   function renderVariantCell(key: string, v: Variant) {
-    const tdBase = 'px-4 py-2 text-sm text-gray-500 whitespace-nowrap';
+    const tdBase = 'px-4 py-1 text-xs text-gray-400 whitespace-nowrap';
     switch (key) {
       case 'code': return (
-        <td key={key} className="px-3 py-2">
-          <div className="flex items-center gap-1.5 pl-5">
-            <svg className="w-3 h-3 text-violet-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
-            </svg>
-            <span className="font-mono text-[11px] bg-violet-50 text-violet-600 px-2 py-0.5 rounded border border-violet-100 tracking-wide">{v.sku}</span>
+        <td key={key} className="px-3 py-1">
+          <div className="flex items-center gap-1.5 pl-4">
+            <span className="text-gray-300 text-xs leading-none flex-shrink-0">└</span>
+            <span className="font-mono text-[10px] bg-violet-50 text-violet-500 px-1.5 py-0.5 rounded border border-violet-100 tracking-wide leading-tight">{v.sku}</span>
           </div>
         </td>
       );
       case 'name': return (
-        <td key={key} className="px-4 py-2">
+        <td key={key} className="px-4 py-1 max-w-[200px]">
           {Object.keys(v.attributes || {}).length > 0
-            ? <div className="flex flex-wrap gap-1">
-                {Object.entries(v.attributes).map(([k, val]) => (
-                  <span key={k} className="text-[11px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-md">
-                    <span className="text-gray-400">{k}:</span> {val}
-                  </span>
-                ))}
-              </div>
-            : <span className="text-gray-300 text-xs italic">Không có thuộc tính</span>}
+            ? <span className="text-[11px] text-gray-400 truncate block">
+                {Object.entries(v.attributes).map(([, val]) => val).join(' · ')}
+              </span>
+            : <span className="text-gray-200 text-[10px] italic">—</span>}
         </td>
       );
-      case 'image': return <td key={key} className="px-2 py-2"><div className="w-9 h-9" /></td>;
+      case 'image': return <td key={key} className="px-2 py-1"><div className="w-7 h-7" /></td>;
       case 'costPrice': return (
         <td key={key} className={`${tdBase} text-right`}>
-          {v.costPrice != null ? <span>{Number(v.costPrice).toLocaleString('vi-VN')}đ</span> : <span className="text-gray-200">—</span>}
+          {v.costPrice != null ? <span className="text-gray-400">{Number(v.costPrice).toLocaleString('vi-VN')}đ</span> : <span className="text-gray-200">—</span>}
         </td>
       );
       case 'sellingPrice': return (
         <td key={key} className={`${tdBase} text-right`}>
-          {v.sellingPrice != null ? <span className="text-blue-500 font-medium">{Number(v.sellingPrice).toLocaleString('vi-VN')}</span> : <span className="text-gray-200">—</span>}
+          {v.sellingPrice != null ? <span className="text-blue-400 font-medium">{Number(v.sellingPrice).toLocaleString('vi-VN')}</span> : <span className="text-gray-200">—</span>}
         </td>
       );
       case 'barcode': return (
-        <td key={key} className="px-4 py-2">
-          <span className="font-mono text-[11px] text-gray-400">{v.barcode || <span className="text-gray-200">—</span>}</span>
+        <td key={key} className="px-4 py-1">
+          <span className="font-mono text-[10px] text-gray-400">{v.barcode || <span className="text-gray-200">—</span>}</span>
         </td>
       );
       case 'status': return (
-        <td key={key} className="px-4 py-2">
+        <td key={key} className="px-4 py-1">
           {v.isActive
-            ? <span className="text-[11px] bg-emerald-50 text-emerald-500 border border-emerald-100 px-1.5 py-0.5 rounded-full">Hoạt động</span>
-            : <span className="text-[11px] bg-gray-50 text-gray-400 border border-gray-200 px-1.5 py-0.5 rounded-full">Ngừng</span>}
+            ? <span className="text-[10px] bg-emerald-50 text-emerald-500 border border-emerald-100 px-1.5 py-0.5 rounded-full">Hoạt động</span>
+            : <span className="text-[10px] bg-gray-50 text-gray-400 border border-gray-200 px-1.5 py-0.5 rounded-full">Ngừng</span>}
         </td>
       );
-      default: return <td key={key} className="px-4 py-2"><span className="text-gray-200 text-[11px]">—</span></td>;
+      default: return <td key={key} className="px-4 py-1"><span className="text-gray-200 text-[10px]">—</span></td>;
     }
   }
 
@@ -800,9 +835,26 @@ export default function ProductsPage() {
                   {visibleCols.map((col) => {
                     const cell = renderHeaderCell(col.key);
                     const left = stickyLeft[col.key];
-                    if (left === undefined) return cell;
+                    const w = colWidths[col.key] ?? DEFAULT_COL_WIDTHS[col.key] ?? 120;
                     const orig = (cell as React.ReactElement<React.HTMLAttributes<HTMLElement>>).props.style || {};
-                    return React.cloneElement(cell as React.ReactElement<React.HTMLAttributes<HTMLElement>>, { style: { ...orig, position: 'sticky', left, zIndex: 21, backgroundColor: 'rgb(249 250 251)', boxShadow: '2px 0 4px -2px rgba(0,0,0,0.08)', minWidth: STICKY_WIDTHS[col.key] ?? 130, width: STICKY_WIDTHS[col.key] ?? 130 } });
+                    const stickyStyle: React.CSSProperties = left !== undefined
+                      ? { position: 'sticky', left, zIndex: 21, backgroundColor: 'rgb(249 250 251)', boxShadow: '2px 0 4px -2px rgba(0,0,0,0.08)' }
+                      : { position: 'relative' };
+                    const origChildren = React.Children.toArray((cell as React.ReactElement<{ children?: React.ReactNode }>).props.children);
+                    return React.cloneElement(
+                      cell as React.ReactElement<React.HTMLAttributes<HTMLElement>>,
+                      { key: col.key, style: { ...orig, ...stickyStyle, width: w, minWidth: w } },
+                      ...origChildren,
+                      <div
+                        key="rh"
+                        onMouseDown={(e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); onResizeMouseDown(e, col.key); }}
+                        style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 5, cursor: 'col-resize', zIndex: 10 }}
+                        className="group/rh flex items-center justify-center hover:bg-blue-300/30 transition-colors"
+                        onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                      >
+                        <div className="w-px h-3 bg-gray-300 opacity-0 group-hover/rh:opacity-100 transition-opacity" />
+                      </div>
+                    );
                   })}
                 </tr>
               </thead>
@@ -829,7 +881,7 @@ export default function ProductsPage() {
                 ) : products.map((p) => {
                   const rowBg = selectedIds.has(p.id) ? '#dbeafe' : hoveredRow === p.id ? '#f0f9ff' : '#ffffff';
                   const isExpanded = expandedIds.has(p.id);
-                  const varBg = '#faf8ff';
+                  const varBg = '#f7f5ff';
                   return (
                   <React.Fragment key={p.id}>
                   <tr
@@ -848,22 +900,22 @@ export default function ProductsPage() {
                       const orig = cellEl.props.style || {};
                       const rowBorder = { borderBottom: isExpanded ? '1px solid #ede9fe' : '1px solid rgb(249 250 251)' };
                       if (left === undefined) return React.cloneElement(cellEl, { style: { ...orig, ...rowBorder, position: 'relative', zIndex: 0, backgroundColor: rowBg } });
-                      const w = STICKY_WIDTHS[col.key] ?? 130;
+                      const w = colWidths[col.key] ?? DEFAULT_COL_WIDTHS[col.key] ?? 130;
                       return React.cloneElement(cellEl, { style: { ...orig, position: 'sticky', left, zIndex: 9, backgroundColor: rowBg, boxShadow: '2px 0 4px -2px rgba(0,0,0,0.06)', minWidth: w, width: w, ...rowBorder } });
                     })}
                   </tr>
                   {isExpanded && (p.variants || []).map((v) => (
                     <tr key={`var-${v.id}`} onClick={(e) => e.stopPropagation()}>
-                      <td className="w-10 pl-4 py-2 border-b border-violet-50/80"
-                        style={{ position: 'sticky', left: 0, zIndex: 9, backgroundColor: varBg }} />
+                      <td className="w-10 pl-4 py-1 border-b border-violet-100/60"
+                        style={{ position: 'sticky', left: 0, zIndex: 9, backgroundColor: varBg, borderLeft: '3px solid #ddd6fe' }} />
                       {visibleCols.map((col) => {
                         const cell = renderVariantCell(col.key, v);
                         const left = stickyLeft[col.key];
                         const cellEl = cell as React.ReactElement<React.HTMLAttributes<HTMLElement>>;
                         const orig = cellEl.props.style || {};
-                        const vBorder = { borderBottom: '1px solid #ede9fe40' };
+                        const vBorder = { borderBottom: '1px solid #ede9fe' };
                         if (left === undefined) return React.cloneElement(cellEl, { key: col.key, style: { ...orig, ...vBorder, position: 'relative', zIndex: 0, backgroundColor: varBg } });
-                        const w = STICKY_WIDTHS[col.key] ?? 130;
+                        const w = colWidths[col.key] ?? DEFAULT_COL_WIDTHS[col.key] ?? 130;
                         return React.cloneElement(cellEl, { key: col.key, style: { ...orig, position: 'sticky', left, zIndex: 9, backgroundColor: varBg, boxShadow: '2px 0 4px -2px rgba(0,0,0,0.04)', minWidth: w, width: w, ...vBorder } });
                       })}
                     </tr>
