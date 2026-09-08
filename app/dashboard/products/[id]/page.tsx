@@ -11,11 +11,16 @@ interface Image { id: number; url: string; isMain: boolean; sortOrder: number; }
 interface InvoiceName { id: number; invoiceName: string; invoiceUnit?: string; isDefault: boolean; notes?: string; }
 interface Product {
   id: number; code: string; name: string; category?: string; unit?: string; brand?: string;
-  costPrice?: number; sellingPrice?: number; wholesalePrice?: number; defaultVatRate?: number;
+  costPrice?: number; sellingPrice?: number; wholesalePrice?: number; averageCost?: number; defaultVatRate?: number;
   stockQuantity?: number; lowStockThreshold?: number; barcode?: string; description?: string; notes?: string;
-  hasVariants: boolean; isSaleable: boolean; isActive: boolean;
+  hasVariants: boolean; isSaleable: boolean; isActive: boolean; priority?: number;
   warehouseLocation?: string; supplierCode?: string; weight?: number; weightUnit?: string;
   warrantyMonths?: number; tags?: string[];
+  // Import / customs fields
+  nameChinese?: string | null; nameEnglish?: string | null;
+  customsDescription?: string | null; costPriceCny?: number | null;
+  hsCode?: string | null; customsName?: string | null;
+  customsUsdPrice?: number | null; packagingInfo?: string | null; importNotes?: string | null;
   variants: Variant[]; images: Image[]; invoiceNames: InvoiceName[];
   createdAt: string; updatedAt: string;
 }
@@ -26,20 +31,76 @@ interface Movement {
   createdAt: string;
 }
 
-const fmtMoney = (n?: number) => n != null ? Number(n).toLocaleString('vi-VN') + 'đ' : '—';
-const fmtDate = (s: string) => new Date(s).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-const fmtDateTime = (s: string) => new Date(s).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+// ── Field config for auto-render in view mode ──────────────────────────────
+type FieldFmt = 'text' | 'mono' | 'money' | 'money-cny' | 'money-usd' | 'percent' | 'date' | 'bool' | 'stock-thresh' | 'warranty' | 'weight-val';
+interface FieldDef { key: keyof Product; label: string; fmt?: FieldFmt; }
 
+const BASIC_FIELDS: FieldDef[] = [
+  { key: 'code',               label: 'Mã sản phẩm',         fmt: 'mono' },
+  { key: 'category',           label: 'Danh mục' },
+  { key: 'unit',               label: 'Đơn vị tính' },
+  { key: 'brand',              label: 'Thương hiệu' },
+  { key: 'barcode',            label: 'Barcode',              fmt: 'mono' },
+  { key: 'supplierCode',       label: 'Mã NCC',               fmt: 'mono' },
+  { key: 'warehouseLocation',  label: 'Vị trí kho' },
+  { key: 'lowStockThreshold',  label: 'Ngưỡng tồn kho',       fmt: 'stock-thresh' },
+  { key: 'warrantyMonths',     label: 'Bảo hành',             fmt: 'warranty' },
+  { key: 'weight',             label: 'Trọng lượng',          fmt: 'weight-val' },
+  { key: 'averageCost',        label: 'Giá vốn bình quân',    fmt: 'money' },
+  { key: 'defaultVatRate',     label: 'Thuế suất mặc định',   fmt: 'percent' },
+  { key: 'priority',           label: 'Độ ưu tiên' },
+  { key: 'isSaleable',         label: 'Được bán',             fmt: 'bool' },
+  { key: 'isActive',           label: 'Trạng thái',           fmt: 'bool' },
+  { key: 'hasVariants',        label: 'Có biến thể',          fmt: 'bool' },
+  { key: 'createdAt',          label: 'Ngày tạo',             fmt: 'date' },
+  { key: 'updatedAt',          label: 'Cập nhật',             fmt: 'date' },
+];
+
+const IMPORT_FIELDS: FieldDef[] = [
+  { key: 'nameChinese',        label: 'Tên tiếng Trung' },
+  { key: 'nameEnglish',        label: 'Tên tiếng Anh' },
+  { key: 'hsCode',             label: 'Mã HS',               fmt: 'mono' },
+  { key: 'customsName',        label: 'Tên hải quan' },
+  { key: 'customsDescription', label: 'Mô tả hải quan' },
+  { key: 'costPriceCny',       label: 'Giá vốn (CNY)',        fmt: 'money-cny' },
+  { key: 'customsUsdPrice',    label: 'Giá hải quan (USD)',   fmt: 'money-usd' },
+  { key: 'packagingInfo',      label: 'Thông tin đóng gói' },
+  { key: 'importNotes',        label: 'Ghi chú nhập khẩu' },
+];
+
+function formatFieldValue(raw: unknown, fmt: FieldFmt | undefined, product: Product): string {
+  if (raw == null) return '—';
+  switch (fmt) {
+    case 'money':      return Number(raw).toLocaleString('vi-VN') + 'đ';
+    case 'money-cny':  return '¥' + Number(raw).toLocaleString('vi-VN');
+    case 'money-usd':  return '$' + Number(raw).toLocaleString('en-US');
+    case 'percent':    return Math.round(Number(raw)) + '%';
+    case 'date':       return new Date(String(raw)).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    case 'bool':       return raw ? 'Có' : 'Không';
+    case 'stock-thresh': return `${raw} ${product.unit || 'cái'}`;
+    case 'warranty':   return `${raw} tháng`;
+    case 'weight-val': return `${raw} ${product.weightUnit || 'kg'}`;
+    case 'mono':
+    case 'text':
+    default:           return String(raw);
+  }
+}
+
+function hasValue(v: unknown): boolean {
+  return v != null && v !== '' && v !== false;
+}
+
+// ── Movement labels ────────────────────────────────────────────────────────
 const MOVE_LABELS: Record<string, { label: string; color: string }> = {
-  PURCHASE_IN:  { label: 'Nhập kho',    color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
-  SALE_OUT:     { label: 'Xuất bán',    color: 'text-red-500 bg-red-50 border-red-100' },
-  RETURN_IN:    { label: 'Trả về',      color: 'text-blue-600 bg-blue-50 border-blue-100' },
-  RETURN_OUT:   { label: 'Xuất trả',    color: 'text-orange-500 bg-orange-50 border-orange-100' },
-  ADJUSTMENT:   { label: 'Điều chỉnh', color: 'text-purple-600 bg-purple-50 border-purple-100' },
-  STOCKCOUNT:   { label: 'Kiểm kho',   color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
-  TRANSFER_IN:  { label: 'Nhận CK',    color: 'text-teal-600 bg-teal-50 border-teal-100' },
-  TRANSFER_OUT: { label: 'Xuất CK',    color: 'text-gray-600 bg-gray-50 border-gray-200' },
-  DAMAGE:       { label: 'Hàng hỏng',  color: 'text-rose-700 bg-rose-50 border-rose-100' },
+  PURCHASE_IN:  { label: 'Nhập kho',      color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
+  SALE_OUT:     { label: 'Xuất bán',      color: 'text-red-500 bg-red-50 border-red-100' },
+  RETURN_IN:    { label: 'Trả về',        color: 'text-blue-600 bg-blue-50 border-blue-100' },
+  RETURN_OUT:   { label: 'Xuất trả',      color: 'text-orange-500 bg-orange-50 border-orange-100' },
+  ADJUSTMENT:   { label: 'Điều chỉnh',    color: 'text-purple-600 bg-purple-50 border-purple-100' },
+  STOCKCOUNT:   { label: 'Kiểm kho',      color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
+  TRANSFER_IN:  { label: 'Nhận CK',       color: 'text-teal-600 bg-teal-50 border-teal-100' },
+  TRANSFER_OUT: { label: 'Xuất CK',       color: 'text-gray-600 bg-gray-50 border-gray-200' },
+  DAMAGE:       { label: 'Hàng hỏng',     color: 'text-rose-700 bg-rose-50 border-rose-100' },
   SUPPLIER_RETURN_OUT: { label: 'Trả NCC', color: 'text-orange-600 bg-orange-50 border-orange-100' },
   MANUAL_IN:    { label: 'Nhập thủ công', color: 'text-emerald-700 bg-emerald-50 border-emerald-100' },
   MANUAL_OUT:   { label: 'Xuất thủ công', color: 'text-gray-600 bg-gray-50 border-gray-200' },
@@ -53,8 +114,7 @@ function PriceInput({ value, onChange, className }: { value: string; onChange: (
   return (
     <input
       type="text" inputMode="numeric" value={display} placeholder="0"
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
+      onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
       onChange={(e) => onChange(e.target.value.replace(/\./g, '').replace(/[^\d]/g, ''))}
       className={className}
     />
@@ -69,13 +129,11 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [tab, setTab] = useState<Tab>('info');
-
-  // Edit mode
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
 
-  // Form state
+  // Form state — basic info
   const [eName, setEName] = useState('');
   const [eCode, setECode] = useState('');
   const [eCategory, setECategory] = useState('');
@@ -92,11 +150,23 @@ export default function ProductDetailPage() {
   const [eWeight, setEWeight] = useState('');
   const [eWeightUnit, setEWeightUnit] = useState('kg');
   const [eWarrantyMonths, setEWarrantyMonths] = useState('');
+  const [ePriority, setEPriority] = useState('');
   const [eDescription, setEDescription] = useState('');
   const [eNotes, setENotes] = useState('');
   const [eIsSaleable, setEIsSaleable] = useState(true);
   const [eIsActive, setEIsActive] = useState(true);
   const [eTagsInput, setETagsInput] = useState('');
+
+  // Form state — import / customs
+  const [eNameChinese, setENameChinese] = useState('');
+  const [eNameEnglish, setENameEnglish] = useState('');
+  const [eHsCode, setEHsCode] = useState('');
+  const [eCustomsName, setECustomsName] = useState('');
+  const [eCustomsDescription, setECustomsDescription] = useState('');
+  const [eCostPriceCny, setECostPriceCny] = useState('');
+  const [eCustomsUsdPrice, setECustomsUsdPrice] = useState('');
+  const [ePackagingInfo, setEPackagingInfo] = useState('');
+  const [eImportNotes, setEImportNotes] = useState('');
 
   // Dropdown data
   const [categories, setCategories] = useState<string[]>([]);
@@ -141,11 +211,22 @@ export default function ProductDetailPage() {
     setEWeight(product.weight?.toString() || '');
     setEWeightUnit(product.weightUnit || 'kg');
     setEWarrantyMonths(product.warrantyMonths?.toString() || '');
+    setEPriority(product.priority?.toString() || '');
     setEDescription(product.description || '');
     setENotes(product.notes || '');
     setEIsSaleable(product.isSaleable !== false);
     setEIsActive(product.isActive !== false);
     setETagsInput((product.tags || []).join(', '));
+    // import fields
+    setENameChinese(product.nameChinese || '');
+    setENameEnglish(product.nameEnglish || '');
+    setEHsCode(product.hsCode || '');
+    setECustomsName(product.customsName || '');
+    setECustomsDescription(product.customsDescription || '');
+    setECostPriceCny(product.costPriceCny != null ? String(product.costPriceCny) : '');
+    setECustomsUsdPrice(product.customsUsdPrice != null ? String(product.customsUsdPrice) : '');
+    setEPackagingInfo(product.packagingInfo || '');
+    setEImportNotes(product.importNotes || '');
     setSaveError('');
     setTab('info');
     setIsEditing(true);
@@ -153,10 +234,9 @@ export default function ProductDetailPage() {
 
   async function handleSave() {
     if (!eName.trim()) { setSaveError('Tên sản phẩm không được để trống'); return; }
-    setSaving(true);
-    setSaveError('');
+    setSaving(true); setSaveError('');
     try {
-      const payload = {
+      const payload: Record<string, unknown> = {
         name: eName.trim(),
         ...(eCode.trim() && { code: eCode.trim() }),
         ...(eCategory && { category: eCategory }),
@@ -174,9 +254,20 @@ export default function ProductDetailPage() {
         ...(eSupplierCode.trim() && { supplierCode: eSupplierCode.trim() }),
         ...(eWeight && { weight: Number(eWeight), weightUnit: eWeightUnit }),
         ...(eWarrantyMonths !== '' && Number(eWarrantyMonths) >= 0 && { warrantyMonths: Number(eWarrantyMonths) }),
+        ...(ePriority && { priority: Number(ePriority) }),
         isSaleable: eIsSaleable,
         isActive: eIsActive,
         tags: eTagsInput.split(',').map((t) => t.trim()).filter(Boolean),
+        // import fields
+        nameChinese: eNameChinese.trim() || null,
+        nameEnglish: eNameEnglish.trim() || null,
+        hsCode: eHsCode.trim() || null,
+        customsName: eCustomsName.trim() || null,
+        customsDescription: eCustomsDescription.trim() || null,
+        costPriceCny: eCostPriceCny ? Number(eCostPriceCny) : null,
+        customsUsdPrice: eCustomsUsdPrice ? Number(eCustomsUsdPrice) : null,
+        packagingInfo: ePackagingInfo.trim() || null,
+        importNotes: eImportNotes.trim() || null,
       };
       await productsApi.update(Number(id), payload);
       const fresh = await productsApi.getOne(Number(id));
@@ -203,13 +294,14 @@ export default function ProductDetailPage() {
       </svg>
     </div>
   );
-
   if (!product) return null;
 
   const mainImg = product.images?.find((i) => i.isMain) || product.images?.[0];
   const stockQty = Math.floor(Number(product.stockQuantity ?? 0));
   const isLowStock = product.lowStockThreshold != null && stockQty > 0 && stockQty <= product.lowStockThreshold;
   const isOutOfStock = stockQty <= 0;
+  const hasImportData = IMPORT_FIELDS.some((f) => hasValue(product[f.key]));
+  const fmtDateTime = (s: string) => new Date(s).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'info',    label: 'Thông tin' },
@@ -237,9 +329,7 @@ export default function ProductDetailPage() {
               {product.isActive ? 'Đang bán' : 'Ngừng bán'}
             </span>
             {isEditing && (
-              <span className="text-[11px] px-2 py-0.5 rounded-full border font-medium bg-amber-50 text-amber-600 border-amber-200">
-                Đang chỉnh sửa
-              </span>
+              <span className="text-[11px] px-2 py-0.5 rounded-full border font-medium bg-amber-50 text-amber-600 border-amber-200">Đang chỉnh sửa</span>
             )}
           </div>
         </div>
@@ -284,11 +374,10 @@ export default function ProductDetailPage() {
           {/* Left — main content */}
           <div className="col-span-2 space-y-4">
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
-              {/* Tab bar — only 2 tabs, always accessible */}
+              {/* Tab bar */}
               <div className="flex border-b border-gray-100 px-4">
                 {tabs.map((t) => (
-                  <button key={t.key}
-                    onClick={() => setTab(t.key)}
+                  <button key={t.key} onClick={() => setTab(t.key)}
                     className={`px-4 py-3 text-sm font-medium border-b-2 transition -mb-px
                       ${tab === t.key ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
                     {t.label}
@@ -297,43 +386,40 @@ export default function ProductDetailPage() {
               </div>
 
               <div className="p-5">
-                {/* ── Tab: Thông tin ── */}
+                {/* ── Thông tin tab ── */}
                 {tab === 'info' && (
                   <div>
-                    {/* Product fields — view mode */}
+                    {/* ── VIEW MODE ── */}
                     {!isEditing && (
                       <div>
-                        <div className="mb-4">
+                        {/* Tên */}
+                        <div className="mb-5">
                           <p className={labelCls}>Tên sản phẩm</p>
                           <p className="text-base font-semibold text-gray-800">{product.name}</p>
-                        </div>
-                        <div className="grid grid-cols-3 gap-x-6 gap-y-4">
-                          {[
-                            { label: 'Mã sản phẩm', value: product.code, mono: true },
-                            { label: 'Danh mục', value: product.category },
-                            { label: 'Đơn vị tính', value: product.unit },
-                            { label: 'Thương hiệu', value: product.brand },
-                            { label: 'Barcode', value: product.barcode, mono: true },
-                            { label: 'Mã NCC', value: product.supplierCode, mono: true },
-                            { label: 'Vị trí kho', value: product.warehouseLocation },
-                            { label: 'Ngưỡng tồn kho', value: product.lowStockThreshold != null ? `${product.lowStockThreshold} ${product.unit || 'cái'}` : undefined },
-                            { label: 'Bảo hành', value: product.warrantyMonths != null ? `${product.warrantyMonths} tháng` : undefined },
-                            { label: 'Trọng lượng', value: product.weight ? `${product.weight} ${product.weightUnit || 'kg'}` : undefined },
-                            { label: 'Thuế suất mặc định', value: `${product.defaultVatRate ?? 10}%` },
-                            { label: 'Được bán', value: product.isSaleable ? 'Có' : 'Không' },
-                            { label: 'Trạng thái', value: product.isActive ? 'Đang hoạt động' : 'Ngừng bán' },
-                            { label: 'Có biến thể', value: product.hasVariants ? 'Có' : 'Không' },
-                            { label: 'Ngày tạo', value: fmtDate(product.createdAt) },
-                            { label: 'Cập nhật', value: fmtDate(product.updatedAt) },
-                          ].map(({ label, value, mono }) => (
-                            <div key={label}>
-                              <p className={labelCls}>{label}</p>
-                              <p className={`text-sm ${mono ? 'font-mono text-gray-600' : 'text-gray-700'}`}>
-                                {value || <span className="text-gray-300">—</span>}
-                              </p>
+                          {(product.nameChinese || product.nameEnglish) && (
+                            <div className="flex gap-4 mt-1">
+                              {product.nameChinese && <p className="text-sm text-gray-500">🇨🇳 {product.nameChinese}</p>}
+                              {product.nameEnglish && <p className="text-sm text-gray-500">🇬🇧 {product.nameEnglish}</p>}
                             </div>
-                          ))}
+                          )}
                         </div>
+
+                        {/* Config-driven field grid */}
+                        <div className="grid grid-cols-3 gap-x-6 gap-y-4">
+                          {BASIC_FIELDS.map(({ key, label, fmt }) => {
+                            const raw = product[key];
+                            if (!hasValue(raw)) return null;
+                            const display = formatFieldValue(raw, fmt, product);
+                            return (
+                              <div key={String(key)}>
+                                <p className={labelCls}>{label}</p>
+                                <p className={`text-sm ${fmt === 'mono' ? 'font-mono text-gray-600' : 'text-gray-700'}`}>{display}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Full-width: tags, description, notes */}
                         {product.tags && product.tags.length > 0 && (
                           <div className="mt-4">
                             <p className={labelCls}>Tags</p>
@@ -356,13 +442,34 @@ export default function ProductDetailPage() {
                             <p className="text-sm text-gray-600 whitespace-pre-wrap">{product.notes}</p>
                           </div>
                         )}
-                        {!product.description && !product.notes && !product.tags?.length && (
-                          <p className="text-xs text-gray-300 mt-4 italic">Chưa có mô tả, ghi chú hoặc tags — bấm Chỉnh sửa để bổ sung</p>
+
+                        {/* Import / customs section — only when data exists */}
+                        {hasImportData && (
+                          <div className="mt-5 pt-4 border-t border-gray-100">
+                            <p className={labelCls + ' mb-3'}>Nhập khẩu & Hải quan</p>
+                            <div className="grid grid-cols-3 gap-x-6 gap-y-4">
+                              {IMPORT_FIELDS.map(({ key, label, fmt }) => {
+                                const raw = product[key];
+                                if (!hasValue(raw)) return null;
+                                const display = formatFieldValue(raw, fmt, product);
+                                return (
+                                  <div key={String(key)}>
+                                    <p className={labelCls}>{label}</p>
+                                    <p className={`text-sm ${fmt === 'mono' ? 'font-mono text-gray-600' : 'text-gray-700'}`}>{display}</p>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {!product.description && !product.notes && !product.tags?.length && !hasImportData && (
+                          <p className="text-xs text-gray-300 mt-4 italic">Chưa có mô tả, ghi chú, tags hoặc thông tin nhập khẩu — bấm Chỉnh sửa để bổ sung</p>
                         )}
                       </div>
                     )}
 
-                    {/* Product fields — edit mode */}
+                    {/* ── EDIT MODE ── */}
                     {isEditing && (
                       <div className="space-y-4">
                         {/* Tên SP */}
@@ -376,8 +483,7 @@ export default function ProductDetailPage() {
                         <div className="grid grid-cols-3 gap-3">
                           <div>
                             <label className={labelCls}>Mã sản phẩm</label>
-                            <input value={eCode} onChange={(e) => setECode(e.target.value)} placeholder="SP001"
-                              className={`${inputCls} font-mono`} />
+                            <input value={eCode} onChange={(e) => setECode(e.target.value)} placeholder="SP001" className={`${inputCls} font-mono`} />
                           </div>
                           <div>
                             <label className={labelCls}>Danh mục</label>
@@ -428,13 +534,12 @@ export default function ProductDetailPage() {
                           </div>
                         </div>
 
-                        {/* Row 4: Trọng lượng | Được bán + Hoạt động */}
+                        {/* Row 4: Trọng lượng | Độ ưu tiên | Được bán + Hoạt động */}
                         <div className="grid grid-cols-3 gap-3">
                           <div>
                             <label className={labelCls}>Trọng lượng</label>
                             <div className="flex gap-1.5">
-                              <input type="number" value={eWeight} onChange={(e) => setEWeight(e.target.value)} placeholder="0" min={0} step="0.001"
-                                className={`${inputCls} flex-1`} />
+                              <input type="number" value={eWeight} onChange={(e) => setEWeight(e.target.value)} placeholder="0" min={0} step="0.001" className={`${inputCls} flex-1`} />
                               <select value={eWeightUnit} onChange={(e) => setEWeightUnit(e.target.value)}
                                 className="px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-14 bg-white">
                                 <option value="kg">kg</option>
@@ -442,20 +547,22 @@ export default function ProductDetailPage() {
                               </select>
                             </div>
                           </div>
-                          <div className="flex items-end gap-5 pb-1 col-span-2">
+                          <div>
+                            <label className={labelCls}>Độ ưu tiên (1–5)</label>
+                            <input type="number" value={ePriority} onChange={(e) => setEPriority(e.target.value)} placeholder="VD: 3" min={1} max={5} className={inputCls} />
+                          </div>
+                          <div className="flex items-end gap-4 pb-1">
                             <label className="flex items-center gap-2 cursor-pointer">
-                              <input type="checkbox" checked={eIsSaleable} onChange={(e) => setEIsSaleable(e.target.checked)}
-                                className="w-4 h-4 rounded border-gray-300 accent-blue-600" />
+                              <input type="checkbox" checked={eIsSaleable} onChange={(e) => setEIsSaleable(e.target.checked)} className="w-4 h-4 rounded border-gray-300 accent-blue-600" />
                               <div>
                                 <div className="text-sm text-gray-700 font-medium">Được bán</div>
-                                <div className="text-[11px] text-gray-400">Hiển thị khi tạo đơn hàng</div>
+                                <div className="text-[11px] text-gray-400">Hiển thị khi tạo đơn</div>
                               </div>
                             </label>
                             <label className="flex items-center gap-2 cursor-pointer">
-                              <input type="checkbox" checked={eIsActive} onChange={(e) => setEIsActive(e.target.checked)}
-                                className="w-4 h-4 rounded border-gray-300 accent-blue-600" />
+                              <input type="checkbox" checked={eIsActive} onChange={(e) => setEIsActive(e.target.checked)} className="w-4 h-4 rounded border-gray-300 accent-blue-600" />
                               <div>
-                                <div className="text-sm text-gray-700 font-medium">Đang hoạt động</div>
+                                <div className="text-sm text-gray-700 font-medium">Hoạt động</div>
                                 <div className="text-[11px] text-gray-400">Bỏ tick để ngừng bán</div>
                               </div>
                             </label>
@@ -488,22 +595,70 @@ export default function ProductDetailPage() {
                           <textarea value={eNotes} onChange={(e) => setENotes(e.target.value)}
                             rows={2} placeholder="Ghi chú chỉ dùng nội bộ..." className={inputCls} />
                         </div>
+
+                        {/* ── Import / Customs section ── */}
+                        <div className="pt-4 border-t border-gray-100">
+                          <p className={labelCls + ' mb-3'}>Nhập khẩu & Hải quan</p>
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className={labelCls}>Tên tiếng Trung</label>
+                                <input value={eNameChinese} onChange={(e) => setENameChinese(e.target.value)} placeholder="品名..." className={inputCls} />
+                              </div>
+                              <div>
+                                <label className={labelCls}>Tên tiếng Anh</label>
+                                <input value={eNameEnglish} onChange={(e) => setENameEnglish(e.target.value)} placeholder="Product name in English" className={inputCls} />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-3 gap-3">
+                              <div>
+                                <label className={labelCls}>Mã HS</label>
+                                <input value={eHsCode} onChange={(e) => setEHsCode(e.target.value)} placeholder="VD: 8543.70.99" className={`${inputCls} font-mono`} />
+                              </div>
+                              <div>
+                                <label className={labelCls}>Tên hải quan</label>
+                                <input value={eCustomsName} onChange={(e) => setECustomsName(e.target.value)} placeholder="Tên khai báo HQ" className={inputCls} />
+                              </div>
+                              <div>
+                                <label className={labelCls}>Mô tả hải quan</label>
+                                <input value={eCustomsDescription} onChange={(e) => setECustomsDescription(e.target.value)} placeholder="Mô tả khai báo HQ" className={inputCls} />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-3 gap-3">
+                              <div>
+                                <label className={labelCls}>Giá vốn (CNY ¥)</label>
+                                <input type="number" value={eCostPriceCny} onChange={(e) => setECostPriceCny(e.target.value)} placeholder="0.00" min={0} step="0.01" className={inputCls} />
+                              </div>
+                              <div>
+                                <label className={labelCls}>Giá hải quan (USD $)</label>
+                                <input type="number" value={eCustomsUsdPrice} onChange={(e) => setECustomsUsdPrice(e.target.value)} placeholder="0.00" min={0} step="0.01" className={inputCls} />
+                              </div>
+                              <div>
+                                <label className={labelCls}>Thông tin đóng gói</label>
+                                <input value={ePackagingInfo} onChange={(e) => setEPackagingInfo(e.target.value)} placeholder="VD: 12 cái/thùng" className={inputCls} />
+                              </div>
+                            </div>
+                            <div>
+                              <label className={labelCls}>Ghi chú nhập khẩu</label>
+                              <textarea value={eImportNotes} onChange={(e) => setEImportNotes(e.target.value)}
+                                rows={2} placeholder="Ghi chú riêng cho đơn nhập / hải quan..." className={inputCls} />
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     )}
 
                     {/* ── Biến thể (always visible) ── */}
                     <div className="mt-6 pt-5 border-t border-gray-100">
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                          Biến thể
-                          {(product.variants?.length ?? 0) > 0 && (
-                            <span className="text-[11px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium">{product.variants.length}</span>
-                          )}
-                        </h3>
-                      </div>
+                      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2 mb-3">
+                        Biến thể
+                        {(product.variants?.length ?? 0) > 0 && (
+                          <span className="text-[11px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium">{product.variants.length}</span>
+                        )}
+                      </h3>
                       {product.variants?.length > 0 ? (
                         <table className="w-full text-sm">
-                          <thead className="bg-gray-50 rounded-lg">
+                          <thead className="bg-gray-50">
                             <tr>
                               <th className="text-left px-3 py-2 text-[11px] font-semibold text-gray-500 uppercase rounded-l-lg">SKU</th>
                               <th className="text-left px-3 py-2 text-[11px] font-semibold text-gray-500 uppercase">Thuộc tính</th>
@@ -518,13 +673,11 @@ export default function ProductDetailPage() {
                                 <td className="px-3 py-2.5 font-mono text-xs text-gray-600">{v.sku}</td>
                                 <td className="px-3 py-2.5 text-xs text-gray-500">
                                   {Object.entries(v.attributes).map(([k, val]) => (
-                                    <span key={k} className="inline-block mr-2">
-                                      <span className="text-gray-400">{k}:</span> {val}
-                                    </span>
+                                    <span key={k} className="inline-block mr-2"><span className="text-gray-400">{k}:</span> {val}</span>
                                   ))}
                                 </td>
-                                <td className="px-3 py-2.5 text-sm text-gray-600">{fmtMoney(v.costPrice)}</td>
-                                <td className="px-3 py-2.5 text-sm font-medium text-gray-700">{fmtMoney(v.sellingPrice)}</td>
+                                <td className="px-3 py-2.5 text-sm text-gray-600">{v.costPrice != null ? Number(v.costPrice).toLocaleString('vi-VN') + 'đ' : '—'}</td>
+                                <td className="px-3 py-2.5 text-sm font-medium text-gray-700">{v.sellingPrice != null ? Number(v.sellingPrice).toLocaleString('vi-VN') + 'đ' : '—'}</td>
                                 <td className="px-3 py-2.5">
                                   <span className={`text-[11px] px-2 py-0.5 rounded-full border font-medium ${v.isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-gray-100 text-gray-400 border-gray-200'}`}>
                                     {v.isActive ? 'Hoạt động' : 'Tắt'}
@@ -541,14 +694,12 @@ export default function ProductDetailPage() {
 
                     {/* ── Tên HĐ VAT (always visible) ── */}
                     <div className="mt-6 pt-5 border-t border-gray-100">
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                          Tên HĐ VAT
-                          {(product.invoiceNames?.length ?? 0) > 0 && (
-                            <span className="text-[11px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium">{product.invoiceNames.length}</span>
-                          )}
-                        </h3>
-                      </div>
+                      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2 mb-3">
+                        Tên HĐ VAT
+                        {(product.invoiceNames?.length ?? 0) > 0 && (
+                          <span className="text-[11px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium">{product.invoiceNames.length}</span>
+                        )}
+                      </h3>
                       {product.invoiceNames?.length > 0 ? (
                         <div className="space-y-2">
                           {product.invoiceNames.map((inv) => (
@@ -563,23 +714,18 @@ export default function ProductDetailPage() {
                           ))}
                         </div>
                       ) : (
-                        <p className="text-gray-300 text-sm text-center py-4">
-                          Chưa có tên hóa đơn nào
-                          {!isEditing && <span className="text-[11px] text-gray-300"> — dấu ★ trong danh sách SP sẽ hiện cảnh báo</span>}
-                        </p>
+                        <p className="text-gray-300 text-sm text-center py-4">Chưa có tên hóa đơn nào</p>
                       )}
                     </div>
 
-                    {/* ── Ảnh sản phẩm (always visible) ── */}
+                    {/* ── Ảnh (always visible) ── */}
                     <div className="mt-6 pt-5 border-t border-gray-100">
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                          Ảnh sản phẩm
-                          {(product.images?.length ?? 0) > 0 && (
-                            <span className="text-[11px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium">{product.images.length}</span>
-                          )}
-                        </h3>
-                      </div>
+                      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2 mb-3">
+                        Ảnh sản phẩm
+                        {(product.images?.length ?? 0) > 0 && (
+                          <span className="text-[11px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium">{product.images.length}</span>
+                        )}
+                      </h3>
                       {product.images?.length > 0 ? (
                         <div className="grid grid-cols-4 gap-3">
                           {product.images.map((img) => (
@@ -598,7 +744,7 @@ export default function ProductDetailPage() {
                   </div>
                 )}
 
-                {/* ── Tab: Lịch sử kho ── */}
+                {/* ── Lịch sử kho tab ── */}
                 {tab === 'history' && (
                   <div>
                     {historyLoading ? (
@@ -698,8 +844,7 @@ export default function ProductDetailPage() {
                     <div key={label}>
                       <label className="block text-[11px] text-gray-400 mb-1">{label}</label>
                       <div className="relative">
-                        <PriceInput value={value} onChange={setter}
-                          className={`${inputCls} pr-5 text-right`} />
+                        <PriceInput value={value} onChange={setter} className={`${inputCls} pr-5 text-right`} />
                         <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-300 pointer-events-none">đ</span>
                       </div>
                     </div>
@@ -723,12 +868,18 @@ export default function ProductDetailPage() {
                   ].map(({ label, value, color }) => (
                     <div key={label} className="flex items-center justify-between">
                       <span className="text-xs text-gray-400">{label}</span>
-                      <span className={`text-sm ${color}`}>{fmtMoney(value)}</span>
+                      <span className={`text-sm ${color}`}>{value != null ? Number(value).toLocaleString('vi-VN') + 'đ' : '—'}</span>
                     </div>
                   ))}
+                  {product.averageCost != null && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-400">Giá vốn BQ</span>
+                      <span className="text-sm text-gray-600">{Number(product.averageCost).toLocaleString('vi-VN')}đ</span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between pt-1 border-t border-gray-50">
                     <span className="text-xs text-gray-400">Thuế suất</span>
-                    <span className="text-sm font-medium text-gray-600">{product.defaultVatRate ?? 10}%</span>
+                    <span className="text-sm font-medium text-gray-600">{Math.round(Number(product.defaultVatRate ?? 10))}%</span>
                   </div>
                   {product.sellingPrice && product.costPrice && (
                     <div className="flex items-center justify-between">
@@ -753,14 +904,8 @@ export default function ProductDetailPage() {
                   {product.unit || 'đơn vị'}
                   {product.warehouseLocation && ` · ${product.warehouseLocation}`}
                 </p>
-                {isOutOfStock && (
-                  <span className="inline-block mt-2 text-[11px] text-red-500 bg-red-50 border border-red-100 px-2 py-0.5 rounded-full font-medium">Hết hàng</span>
-                )}
-                {isLowStock && (
-                  <span className="inline-block mt-2 text-[11px] text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-full font-medium">
-                    Sắp hết · ngưỡng {product.lowStockThreshold}
-                  </span>
-                )}
+                {isOutOfStock && <span className="inline-block mt-2 text-[11px] text-red-500 bg-red-50 border border-red-100 px-2 py-0.5 rounded-full font-medium">Hết hàng</span>}
+                {isLowStock && <span className="inline-block mt-2 text-[11px] text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-full font-medium">Sắp hết · ngưỡng {product.lowStockThreshold}</span>}
               </div>
               <button onClick={() => setTab('history')}
                 className="w-full mt-3 text-[11px] text-blue-500 hover:text-blue-600 font-medium text-center transition">
@@ -768,7 +913,7 @@ export default function ProductDetailPage() {
               </button>
             </div>
 
-            {/* Quick info card (only in view mode) */}
+            {/* Quick info (view mode only) */}
             {!isEditing && (
               <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
                 <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Thông tin nhanh</h3>
@@ -778,6 +923,8 @@ export default function ProductDetailPage() {
                     { label: 'Danh mục', value: product.category },
                     { label: 'Đơn vị tính', value: product.unit },
                     { label: 'Bảo hành', value: product.warrantyMonths ? `${product.warrantyMonths} tháng` : undefined },
+                    { label: 'Mã HS', value: product.hsCode },
+                    { label: 'Tên tiếng Trung', value: product.nameChinese ?? undefined },
                   ].map(({ label, value }) => value ? (
                     <div key={label} className="flex items-start justify-between gap-2">
                       <span className="text-xs text-gray-400 shrink-0">{label}</span>
