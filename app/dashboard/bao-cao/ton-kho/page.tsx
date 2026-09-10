@@ -276,12 +276,12 @@ export default function BaoCaoTonKhoPage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white border border-gray-200 rounded-xl p-4">
               <div className="text-sm text-gray-500">Tổng SKU</div>
-              <div className="text-2xl font-bold text-blue-600 mt-1">{fmtNum(data.kpi.tongSKU)}</div>
+              <div className="text-base font-bold text-blue-600 mt-0.5">{fmtNum(data.kpi.tongSKU)}</div>
               <div className="text-xs text-gray-400 mt-1">sản phẩm đang theo dõi</div>
             </div>
             <div className="bg-white border border-gray-200 rounded-xl p-4">
               <div className="text-sm text-gray-500">Giá Trị Tồn Kho</div>
-              <div className="text-2xl font-bold text-green-600 mt-1">{fmt(data.kpi.tongGiaTri)}</div>
+              <div className="text-base font-bold text-green-600 mt-0.5">{fmt(data.kpi.tongGiaTri)}</div>
               <div className="text-xs text-gray-400 mt-1">theo giá vốn bình quân</div>
             </div>
             <div
@@ -289,7 +289,7 @@ export default function BaoCaoTonKhoPage() {
               onClick={() => data.kpi.hetHangCount > 0 && hetHangRef.current?.scrollIntoView({ behavior: 'smooth' })}
             >
               <div className="text-sm text-gray-500">Hết Hàng</div>
-              <div className={`text-2xl font-bold mt-1 ${data.kpi.hetHangCount > 0 ? 'text-red-600' : 'text-gray-400'}`}>
+              <div className={`text-base font-bold mt-0.5 ${data.kpi.hetHangCount > 0 ? 'text-red-600' : 'text-gray-400'}`}>
                 {data.kpi.hetHangCount}
               </div>
               <div className="text-xs text-gray-400 mt-1">sản phẩm tồn ≤ 0</div>

@@ -593,13 +593,6 @@ export default function PurchaseOrderDetailPage() {
                     {actionLoading === 'received' ? 'Đang xử lý...' : '✓ Nhận hàng'}
                   </button>
                 )}
-                {!isCancelled && isReceived && (
-                  <a
-                    href={`/dashboard/nhap-hd-vat/new?purchaseOrderId=${po.id}`}
-                    className="px-4 py-2 rounded-xl text-sm font-medium bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100 transition">
-                    📄 Tạo HĐ VAT đầu vào
-                  </a>
-                )}
               </div>
             </div>
 

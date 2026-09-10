@@ -1,220 +1,201 @@
-﻿'use client';
+'use client';
 
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+// PartnersListPage v3 — đồng bộ UI với module sản phẩm
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { partnersApi } from '@/lib/partners';
 
-const RANK_LABEL: Record<string, string> = { new: 'Mới', normal: 'Thường', loyal: 'Thân thiết', vip: 'VIP' };
-const RANK_STYLE: Record<string, string> = {
-  new: 'text-gray-400 bg-gray-50 border border-gray-200',
+// ── Labels / styles ────────────────────────────────────────────────────────
+const RANK_LABEL: Record<string,string> = { new:'Mới', normal:'Thường', loyal:'Thân thiết', vip:'VIP' };
+const RANK_STYLE: Record<string,string> = {
+  new:    'text-gray-400 bg-gray-50 border border-gray-200',
   normal: 'text-sky-600 bg-sky-50 border border-sky-100',
-  loyal: 'text-emerald-600 bg-emerald-50 border border-emerald-100',
-  vip: 'text-amber-500 bg-amber-50 border border-amber-200',
+  loyal:  'text-emerald-600 bg-emerald-50 border border-emerald-100',
+  vip:    'text-amber-500 bg-amber-50 border border-amber-200',
 };
-const TYPE_STYLE: Record<string, string> = {
-  customer: 'text-blue-600 bg-blue-50',
-  supplier: 'text-violet-600 bg-violet-50',
-  both: 'text-teal-600 bg-teal-50',
-  freight: 'text-orange-600 bg-orange-50',
+const TYPE_STYLE: Record<string,string> = {
+  customer:'text-blue-600 bg-blue-50', supplier:'text-violet-600 bg-violet-50',
+  both:'text-teal-600 bg-teal-50', freight:'text-orange-600 bg-orange-50',
 };
-const TYPE_LABEL: Record<string, string> = {
-  customer: 'Khách hàng',
-  supplier: 'Nhà cung cấp',
-  both: 'KH + NCC',
-  freight: 'Đơn vị VC',
+const TYPE_LABEL: Record<string,string> = {
+  customer:'Khách hàng', supplier:'Nhà cung cấp', both:'KH + NCC', freight:'Đơn vị VC',
 };
-
 const PAGE_CONFIG = {
-  customer: {
-    title: 'Khách Hàng',
-    subtitle: 'Quản lý danh sách khách hàng',
-    btnLabel: 'Thêm khách hàng',
-    emptyLabel: 'Chưa có khách hàng nào',
-    emptyBtn: '+ Thêm khách hàng đầu tiên',
-    csvName: 'khach-hang.csv',
-    csvNameSelected: 'khach-hang-da-chon.csv',
-  },
-  supplier: {
-    title: 'Nhà Cung Cấp',
-    subtitle: 'Quản lý danh sách nhà cung cấp',
-    btnLabel: 'Thêm nhà cung cấp',
-    emptyLabel: 'Chưa có nhà cung cấp nào',
-    emptyBtn: '+ Thêm nhà cung cấp đầu tiên',
-    csvName: 'nha-cung-cap.csv',
-    csvNameSelected: 'nha-cung-cap-da-chon.csv',
-  },
-  freight: {
-    title: 'Đơn Vị Vận Chuyển',
-    subtitle: 'Quản lý công ty vận chuyển',
-    btnLabel: 'Thêm đơn vị VC',
-    emptyLabel: 'Chưa có đơn vị vận chuyển nào',
-    emptyBtn: '+ Thêm đơn vị VC đầu tiên',
-    csvName: 'don-vi-vc.csv',
-    csvNameSelected: 'don-vi-vc-da-chon.csv',
-  },
+  customer:{ title:'Khách Hàng',       subtitle:'Quản lý danh sách khách hàng',   btnLabel:'Thêm khách hàng', csvName:'khach-hang.csv' },
+  supplier:{ title:'Nhà Cung Cấp',     subtitle:'Quản lý danh sách nhà cung cấp', btnLabel:'Thêm nhà cung cấp', csvName:'nha-cung-cap.csv' },
+  freight: { title:'Đơn Vị Vận Chuyển',subtitle:'Quản lý công ty vận chuyển',     btnLabel:'Thêm đơn vị VC',   csvName:'don-vi-vc.csv' },
+};
+const OVERVIEW_CONFIG = { title:'Đối Tác', subtitle:'Quản lý khách hàng và nhà cung cấp', btnLabel:'Thêm đối tác', csvName:'doi-tac.csv' };
+
+// ── Number formatter — dấu chấm nghìn, không có "đ" ──────────────────────
+// TypeORM decimal columns trả về string ("2638230.00") → dùng Number() để format đúng
+const fmtNum = (v: number|string) => Number(v).toLocaleString('vi-VN');
+const fmtMoney = (v?: number|string|null) => Number(v ?? 0) > 0 ? fmtNum(Number(v ?? 0)) : '—';
+
+// ── Column definitions ─────────────────────────────────────────────────────
+interface ColDef  { key: string; label: string; required?: boolean; }
+interface ColItem { key: string; visible: boolean; displayType?: 'truncate'|'clamp'|'wrap'; pinned?: boolean; }
+
+const ALL_COLS: ColDef[] = [
+  { key:'code',              label:'Mã',               required:true },
+  { key:'name',              label:'Tên đối tác',      required:true },
+  { key:'type',              label:'Loại' },
+  { key:'customerType',      label:'Hình thức' },
+  { key:'phone',             label:'Điện thoại' },
+  { key:'contactPhone2',     label:'ĐT 2' },
+  { key:'email',             label:'Email' },
+  { key:'province',          label:'Tỉnh/TP' },
+  { key:'rank',              label:'Hạng' },
+  { key:'group',             label:'Nhóm' },
+  { key:'source',            label:'Nguồn' },
+  { key:'rating',            label:'Đánh giá' },
+  { key:'currency',          label:'Tiền tệ' },
+  { key:'totalDebt',         label:'Công nợ KH' },
+  { key:'supplierDebt',      label:'Công nợ NCC' },
+  { key:'creditLimit',       label:'Hạn mức CN' },
+  { key:'paymentTerm',       label:'Kỳ TT (ngày)' },
+  { key:'totalOrders',       label:'Tổng đơn' },
+  { key:'totalRevenue',      label:'Doanh thu' },
+  { key:'totalPurchase',     label:'Tổng mua hàng' },
+  { key:'contactPerson',     label:'Người liên hệ' },
+  { key:'address',           label:'Địa chỉ' },
+  { key:'bankAccount',       label:'Số TK' },
+  { key:'bankName',          label:'Ngân hàng' },
+  { key:'bankAccountHolder', label:'Chủ TK' },
+  { key:'bankBranch',        label:'Chi nhánh NH' },
+  { key:'assignedStaff',     label:'NV phụ trách' },
+  { key:'notes',             label:'Ghi chú' },
+  { key:'status',            label:'Trạng thái' },
+];
+
+const DEFAULT_VISIBLE: Record<string,Set<string>> = {
+  all:      new Set(['code','name','type','phone','province','rank','totalDebt','status']),
+  customer: new Set(['code','name','phone','province','rank','creditLimit','totalDebt','totalOrders','status']),
+  supplier: new Set(['code','name','phone','province','supplierDebt','totalPurchase','currency','rating','paymentTerm','status']),
+  freight:  new Set(['code','name','phone','province','supplierDebt','status']),
 };
 
-const OVERVIEW_CONFIG = {
-  title: 'Đối Tác',
-  subtitle: 'Quản lý khách hàng và nhà cung cấp',
-  btnLabel: 'Thêm đối tác',
-  emptyLabel: 'Chưa có đối tác nào',
-  emptyBtn: '+ Thêm đối tác đầu tiên',
-  csvName: 'doi-tac.csv',
-  csvNameSelected: 'doi-tac-da-chon.csv',
+const TEXT_DISPLAY_COLS = new Set(['name','address','notes','group','bankBranch','email','contactPerson','bankName','bankAccountHolder']);
+
+const DEFAULT_COL_WIDTHS: Record<string,number> = {
+  code:88, name:200, type:110, customerType:100,
+  phone:120, contactPhone2:120, email:170,
+  province:110, rank:90, group:120, source:90,
+  rating:90, currency:85,
+  totalDebt:125, supplierDebt:125, creditLimit:120, paymentTerm:90,
+  totalOrders:85, totalRevenue:130, totalPurchase:140,
+  contactPerson:130, address:200,
+  bankAccount:140, bankName:140, bankAccountHolder:160, bankBranch:160,
+  assignedStaff:130, notes:200, status:100,
 };
 
+const STORAGE_KEY_PREFIX    = 'partners_col_order_v3_';
+const COL_WIDTHS_KEY_PREFIX = 'partners_col_widths_v3_';
+const NUM_EDIT_FIELDS       = new Set(['creditLimit','paymentTerm','rating']);
 
-const ALL_COLS = [
-  { key: 'Liên hệ',        label: 'Liên hệ (SĐT + Email)',   defaultOn: true  },
-  { key: 'Tỉnh/TP',        label: 'Tỉnh / Thành phố',        defaultOn: true  },
-  { key: 'Hạng',           label: 'Hạng khách hàng',         defaultOn: true  },
-  { key: 'Hạn mức CN',     label: 'Hạn mức công nợ',         defaultOn: true  },
-  { key: 'Công nợ',        label: 'Công nợ hiện tại',        defaultOn: true  },
-  { key: 'Tổng đơn hàng',  label: 'Tổng SL đơn hàng',       defaultOn: false },
-  { key: 'Tổng chi tiêu',  label: 'Tổng chi tiêu',           defaultOn: false },
-  { key: 'Người liên hệ',  label: 'Người liên hệ',           defaultOn: false },
-  { key: 'Nguồn',          label: 'Nguồn khách',             defaultOn: false },
-  { key: 'Nhóm',           label: 'Nhóm đối tác',            defaultOn: false },
-  { key: 'Địa chỉ',        label: 'Địa chỉ',                 defaultOn: false },
-  { key: 'Ngân hàng',      label: 'Tài khoản ngân hàng',     defaultOn: false },
-  { key: 'Nhân viên PT',   label: 'Nhân viên phụ trách',     defaultOn: false },
-] as const;
-
-type ColKey = typeof ALL_COLS[number]['key'];
-
-const defaultVisibility = Object.fromEntries(
-  ALL_COLS.map((c) => [c.key, c.defaultOn])
-) as Record<ColKey, boolean>;
-
+// ── Data types ─────────────────────────────────────────────────────────────
 interface Partner {
-  id: number; code: string; name: string; type: string; customerType: string;
-  phone?: string; email?: string; province?: string; rank: string;
-  creditLimit: number; totalDebt: number; supplierDebt?: number; isActive: boolean;
-  totalOrders: number; totalRevenue: number;
-  contactPerson?: string; source?: string; group?: string;
-  address?: string; bankAccount?: string; bankName?: string;
-  assignedStaff?: { id: number; name: string };
+  id:number; code:string; name:string; type:string; customerType:string;
+  phone?:string; contactPhone2?:string; email?:string; province?:string;
+  rank:string; group?:string; source?:string; rating?:number; currency?:string;
+  creditLimit:number; totalDebt:number; supplierDebt?:number;
+  paymentTerm?:number; totalOrders:number; totalRevenue:number; totalPurchase?:number;
+  contactPerson?:string; address?:string;
+  bankAccount?:string; bankName?:string; bankAccountHolder?:string; bankBranch?:string;
+  assignedStaff?:{ id:number; name:string };
+  notes?:string; isActive:boolean;
 }
 interface Stats {
-  total: number; customers: number; suppliers: number; freight: number; vip: number;
-  customersWithDebt: number; totalCustomerDebt: number;
-  suppliersWithDebt: number; totalSupplierDebt: number;
-  freightWithDebt: number; totalFreightDebt: number;
-  domesticSuppliers: number; foreignSuppliers: number;
-  debtVnd: number; debtCnyForeign: number; debtCnyVnd: number;
-  debtUsdForeign: number; debtUsdVnd: number;
+  total:number; customers:number; suppliers:number; freight:number; vip:number;
+  customersWithDebt:number; totalCustomerDebt:number;
+  suppliersWithDebt:number; totalSupplierDebt:number;
+  freightWithDebt:number; totalFreightDebt:number;
+  domesticSuppliers:number; foreignSuppliers:number;
 }
 
-type SortField = 'name' | 'totalDebt' | 'creditLimit' | 'rank' | 'totalOrders' | 'totalRevenue' | 'createdAt';
+// ── Storage helpers ────────────────────────────────────────────────────────
+function getStorageKey(ctx:string){ return STORAGE_KEY_PREFIX+ctx; }
+function getWidthsKey(ctx:string) { return COL_WIDTHS_KEY_PREFIX+ctx; }
 
-function ProvinceSelect({ value, onChange, provinces }: { value: string[]; onChange: (v: string[]) => void; provinces: string[] }) {
+function defaultColOrder(ctx:string): ColItem[] {
+  const vis = DEFAULT_VISIBLE[ctx] ?? DEFAULT_VISIBLE.all;
+  return ALL_COLS.map((c) => ({
+    key:c.key, visible:!!c.required || vis.has(c.key),
+    ...(TEXT_DISPLAY_COLS.has(c.key) ? { displayType:'truncate' as const } : {}),
+  }));
+}
+
+function loadColOrder(ctx:string): ColItem[] {
+  try {
+    const s = localStorage.getItem(getStorageKey(ctx));
+    if (s) {
+      const saved: ColItem[] = JSON.parse(s);
+      const savedKeys = new Set(saved.map((c) => c.key));
+      const valid = saved.filter((c) => ALL_COLS.some((a) => a.key===c.key));
+      ALL_COLS.forEach((c) => { if (!savedKeys.has(c.key)) valid.push({ key:c.key, visible:false }); });
+      return valid;
+    }
+  } catch {}
+  return defaultColOrder(ctx);
+}
+
+// ── Province multi-select ──────────────────────────────────────────────────
+function ProvinceSelect({ value, onChange, provinces }: { value:string[]; onChange:(v:string[])=>void; provinces:string[] }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  const filtered = useMemo(
-    () => provinces.filter((p) => p.toLowerCase().includes(q.toLowerCase())),
-    [provinces, q],
-  );
-
+  const filtered = useMemo(() => provinces.filter((p) => p.toLowerCase().includes(q.toLowerCase())), [provinces, q]);
   useEffect(() => {
-    function onDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false); setQ('');
-      }
-    }
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
+    function h(e:MouseEvent){ if (ref.current && !ref.current.contains(e.target as Node)){ setOpen(false); setQ(''); } }
+    document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h);
   }, []);
-
-  function toggle(p: string) {
-    onChange(value.includes(p) ? value.filter((v) => v !== p) : [...value, p]);
-  }
-
-  const label = value.length === 0 ? 'Tỉnh / TP'
-    : value.length === 1 ? value[0]
-    : `${value.length} tỉnh/TP`;
-
+  function toggle(p:string){ onChange(value.includes(p) ? value.filter((v)=>v!==p) : [...value, p]); }
+  const lbl = value.length===0 ? 'Tỉnh / TP' : value.length===1 ? value[0] : `${value.length} tỉnh/TP`;
   return (
     <div className="relative" ref={ref}>
-      <button
-        type="button"
-        onClick={() => { setOpen((o) => !o); setTimeout(() => inputRef.current?.focus(), 50); }}
-        className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-sm transition bg-gray-50/80 cursor-pointer min-w-[130px] ${
-          value.length > 0 ? 'border-blue-400 text-blue-600 bg-blue-50/60' : 'border-gray-200 text-gray-500 hover:border-gray-300'
-        }`}>
-        <svg className="w-3 h-3 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-        </svg>
-        <span className="truncate flex-1 text-left">{label}</span>
-        {value.length > 0
-          ? <span onClick={(e) => { e.stopPropagation(); onChange([]); }}
-              className="text-blue-400 hover:text-blue-600 ml-0.5 flex-shrink-0">
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12"/>
-              </svg>
-            </span>
-          : <svg className={`w-3 h-3 flex-shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
-            </svg>
+      <button type="button" onClick={() => { setOpen((o)=>!o); setTimeout(()=>inputRef.current?.focus(),50); }}
+        className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-sm transition min-w-[120px] cursor-pointer ${value.length>0?'border-blue-400 text-blue-600 bg-blue-50/60':'border-gray-200 text-gray-500 hover:border-gray-300 bg-white'}`}>
+        <svg className="w-3 h-3 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        <span className="truncate flex-1 text-left text-sm">{lbl}</span>
+        {value.length>0
+          ? <span onClick={(e)=>{e.stopPropagation();onChange([]);}} className="text-blue-400 hover:text-blue-600"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12"/></svg></span>
+          : <svg className={`w-3 h-3 flex-shrink-0 text-gray-400 transition-transform ${open?'rotate-180':''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/></svg>
         }
       </button>
-
       {open && (
         <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-gray-100 rounded-xl shadow-xl w-56 py-2">
-          {/* Search input */}
           <div className="px-2 pb-1.5">
-            <div className="relative">
-              <svg className="w-3 h-3 text-gray-300 absolute left-2.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-              </svg>
-              <input ref={inputRef} type="text" value={q} onChange={(e) => setQ(e.target.value)}
-                placeholder="Tìm tỉnh/TP..."
-                className="w-full pl-7 pr-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-gray-300"/>
-            </div>
+            <input ref={inputRef} type="text" value={q} onChange={(e)=>setQ(e.target.value)} placeholder="Tìm tỉnh/TP..."
+              className="w-full pl-3 pr-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-gray-300"/>
           </div>
-          {/* Selected chips */}
-          {value.length > 0 && (
+          {value.length>0 && (
             <div className="px-2 pb-1.5 flex flex-wrap gap-1">
               {value.map((p) => (
                 <span key={p} className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 text-[11px] px-2 py-0.5 rounded-full font-medium">
-                  {p}
-                  <button onClick={() => toggle(p)} className="hover:text-blue-900">
-                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
-                  </button>
+                  {p}<button onClick={()=>toggle(p)}><svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12"/></svg></button>
                 </span>
               ))}
             </div>
           )}
-          <div className="h-px bg-gray-50 mx-2 mb-1" />
-          {/* List */}
-          <div className="overflow-y-auto" style={{ maxHeight: '200px' }}>
-            {filtered.length === 0
+          <div className="h-px bg-gray-50 mx-2 mb-1"/>
+          <div className="overflow-y-auto" style={{maxHeight:200}}>
+            {filtered.length===0
               ? <p className="px-3 py-3 text-xs text-gray-300 text-center">Không tìm thấy</p>
               : filtered.map((p) => {
-                  const checked = value.includes(p);
+                  const chk = value.includes(p);
                   return (
-                    <label key={p} className={`flex items-center gap-2.5 px-3 py-2 cursor-pointer transition ${checked ? 'bg-blue-50/60' : 'hover:bg-gray-50'}`}>
-                      <input type="checkbox" checked={checked} onChange={() => toggle(p)}
-                        className="w-3.5 h-3.5 rounded border-gray-300 accent-blue-600 cursor-pointer flex-shrink-0"/>
-                      <span className={`text-sm ${checked ? 'text-blue-700 font-medium' : 'text-gray-700'}`}>{p}</span>
+                    <label key={p} className={`flex items-center gap-2.5 px-3 py-2 cursor-pointer ${chk?'bg-blue-50/60':'hover:bg-gray-50'}`}>
+                      <input type="checkbox" checked={chk} onChange={()=>toggle(p)} className="w-3.5 h-3.5 rounded border-gray-300 accent-blue-600"/>
+                      <span className={`text-sm ${chk?'text-blue-700 font-medium':'text-gray-700'}`}>{p}</span>
                     </label>
                   );
                 })
             }
           </div>
-          {value.length > 0 && (
+          {value.length>0 && (
             <div className="px-2 pt-1.5 border-t border-gray-50 mt-1">
-              <button onClick={() => onChange([])}
-                className="w-full text-xs text-gray-400 hover:text-red-400 transition py-1">
-                Xóa tất cả ({value.length})
-              </button>
+              <button onClick={()=>onChange([])} className="w-full text-xs text-gray-400 hover:text-red-400 py-1">Xóa tất cả ({value.length})</button>
             </div>
           )}
         </div>
@@ -223,844 +204,643 @@ function ProvinceSelect({ value, onChange, provinces }: { value: string[]; onCha
   );
 }
 
-function SortTh({
-  label, field, sortBy, sortOrder, onSort,
-}: { label: string; field: SortField; sortBy: SortField; sortOrder: 'ASC' | 'DESC'; onSort: (f: SortField) => void }) {
-  const active = sortBy === field;
+// ── Column Settings Modal — centered modal, luôn hiện pin & display type ──
+function ColSettingsModal({ colOrder, onSave, onClose, defaultOrder }: {
+  colOrder:ColItem[]; onSave:(o:ColItem[])=>void; onClose:()=>void; defaultOrder:ColItem[];
+}) {
+  const [draft, setDraft] = useState<ColItem[]>([...colOrder]);
+  const [dragIdx,     setDragIdx]     = useState<number|null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number|null>(null);
+
+  function toggle(key:string){
+    const def = ALL_COLS.find((c)=>c.key===key);
+    if (def?.required) return;
+    setDraft((p) => p.map((c) => c.key===key ? {...c, visible:!c.visible} : c));
+  }
+  function setPin(key:string, pinned:boolean){ setDraft((p) => p.map((c) => c.key===key ? {...c,pinned} : c)); }
+  function setDT(key:string, dt:'truncate'|'clamp'|'wrap'){ setDraft((p) => p.map((c) => c.key===key ? {...c,displayType:dt} : c)); }
+
+  function handleDragStart(e:React.DragEvent, idx:number){ e.dataTransfer.effectAllowed='move'; setDragIdx(idx); }
+  function handleDragOver(e:React.DragEvent, idx:number){ e.preventDefault(); if (dragOverIdx!==idx) setDragOverIdx(idx); }
+  function handleDrop(e:React.DragEvent, idx:number){
+    e.preventDefault();
+    if (dragIdx===null || dragIdx===idx){ setDragIdx(null); setDragOverIdx(null); return; }
+    const arr=[...draft]; const [m]=arr.splice(dragIdx,1); arr.splice(idx,0,m);
+    setDraft(arr); setDragIdx(null); setDragOverIdx(null);
+  }
+  function handleDragEnd(){ setDragIdx(null); setDragOverIdx(null); }
+
+  const visCount = draft.filter((c)=>c.visible).length;
   return (
-    <th
-      onClick={() => onSort(field)}
-      className="text-left px-5 py-2.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100 cursor-pointer select-none hover:text-gray-700 transition-colors group">
-      <div className="flex items-center gap-1">
-        {label}
-        <span className={`flex flex-col leading-none ml-0.5 ${active ? 'text-blue-500' : 'text-gray-300 group-hover:text-gray-400'}`}>
-          <svg className={`w-2.5 h-2.5 -mb-0.5 transition-opacity ${active && sortOrder === 'ASC' ? 'opacity-100' : 'opacity-40'}`} viewBox="0 0 10 6" fill="currentColor"><path d="M5 0L10 6H0L5 0z"/></svg>
-          <svg className={`w-2.5 h-2.5 transition-opacity ${active && sortOrder === 'DESC' ? 'opacity-100' : 'opacity-40'}`} viewBox="0 0 10 6" fill="currentColor"><path d="M5 6L0 0H10L5 6z"/></svg>
-        </span>
-      </div>
-    </th>
-  );
-}
-
-function PlainTh({ label }: { label: string }) {
-  return (
-    <th className="text-left px-5 py-2.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100">{label}</th>
-  );
-}
-
-export default function PartnersListPage({ fixedTypeGroup }: { fixedTypeGroup?: 'customer' | 'supplier' | 'freight' }) {
-  const router = useRouter();
-  const cfg = fixedTypeGroup ? PAGE_CONFIG[fixedTypeGroup] : OVERVIEW_CONFIG;
-  const colsKey = `partners_cols_${fixedTypeGroup || 'all'}`;
-
-  const [partners, setPartners] = useState<Partner[]>([]);
-  const [stats, setStats] = useState<Stats>({
-    total: 0, customers: 0, suppliers: 0, freight: 0, vip: 0,
-    customersWithDebt: 0, totalCustomerDebt: 0,
-    suppliersWithDebt: 0, totalSupplierDebt: 0,
-    freightWithDebt: 0, totalFreightDebt: 0,
-    domesticSuppliers: 0, foreignSuppliers: 0,
-    debtVnd: 0, debtCnyForeign: 0, debtCnyVnd: 0,
-    debtUsdForeign: 0, debtUsdVnd: 0,
-  });
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [limit, setLimit] = useState<20 | 50 | 100>(20);
-  const [loading, setLoading] = useState(true);
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [showBulkMenu, setShowBulkMenu] = useState(false);
-  const [showRankPicker, setShowRankPicker] = useState(false);
-  const bulkMenuRef = useRef<HTMLDivElement>(null);
-  const [search, setSearch] = useState('');
-  const [filterType, setFilterType] = useState('');
-  const [filterRank, setFilterRank] = useState('');
-  const [filterProvince, setFilterProvince] = useState<string[]>([]);
-  const [provinces, setProvinces] = useState<string[]>([]);
-  const [topDebt, setTopDebt] = useState<{ receivable: Partner[]; payable: Partner[] }>({ receivable: [], payable: [] });
-  const [showColMenu, setShowColMenu] = useState(false);
-  const [visibleCols, setVisibleCols] = useState<Record<ColKey, boolean>>(() => {
-    try {
-      const saved = localStorage.getItem(colsKey);
-      if (saved) return { ...defaultVisibility, ...JSON.parse(saved) };
-    } catch {}
-    return defaultVisibility;
-  });
-  const [sortBy, setSortBy] = useState<SortField>('createdAt');
-  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
-
-  const colMenuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (colMenuRef.current && !colMenuRef.current.contains(e.target as Node)) {
-        setShowColMenu(false);
-      }
-      if (bulkMenuRef.current && !bulkMenuRef.current.contains(e.target as Node)) {
-        setShowBulkMenu(false);
-        setShowRankPicker(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    partnersApi.getProvinces().then(setProvinces).catch(() => {});
-    if (!fixedTypeGroup) {
-      partnersApi.getTopDebt(10).then(setTopDebt).catch(() => {});
-    }
-  }, [fixedTypeGroup]);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params: Record<string, string> = { sortBy, sortOrder, page: String(page), limit: String(limit) };
-      if (search) params.search = search;
-      if (fixedTypeGroup) {
-        params.typeGroup = fixedTypeGroup;
-      } else {
-        if (filterType) params.type = filterType;
-      }
-      if (filterRank) params.rank = filterRank;
-      if (filterProvince.length > 0) params.province = filterProvince.join(',');
-      const [res, s] = await Promise.all([partnersApi.getAll(params), partnersApi.getStats()]);
-      setPartners(res.data);
-      setTotal(res.total);
-      setTotalPages(res.totalPages || 1);
-      setStats(s);
-      setSelectedIds(new Set());
-    } finally {
-      setLoading(false);
-    }
-  }, [search, filterType, filterRank, filterProvince.join(','), sortBy, sortOrder, page, limit, fixedTypeGroup]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => { load(); }, [load]);
-
-  function handleSort(field: SortField) {
-    setPage(1);
-    if (sortBy === field) {
-      setSortOrder((o) => o === 'ASC' ? 'DESC' : 'ASC');
-    } else {
-      setSortBy(field);
-      setSortOrder('DESC');
-    }
-  }
-
-  function setSearchReset(v: string) { setPage(1); setSearch(v); }
-  function setTypeReset(v: string) { setPage(1); setFilterType(v); }
-  function setRankReset(v: string) { setPage(1); setFilterRank(v); }
-  function setProvinceReset(v: string[]) { setPage(1); setFilterProvince(v); }
-
-  function handleAdd() {
-    const typeParam = fixedTypeGroup ? `?type=${fixedTypeGroup}` : '';
-    router.push(`/dashboard/partners/new${typeParam}`);
-  }
-  function handleEdit(p: Partner) { router.push(`/dashboard/partners/${p.id}/edit`); }
-  async function handleDelete(id: number) {
-    if (!confirm('Xác nhận xóa đối tác này?')) return;
-    await partnersApi.remove(id);
-    load();
-  }
-
-  function toggleSelect(id: number) {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  }
-
-  function toggleSelectAll() {
-    if (selectedIds.size === partners.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(partners.map((p) => p.id)));
-    }
-  }
-
-  async function handleBulkDelete() {
-    if (!confirm(`Xác nhận xóa ${selectedIds.size} đối tác đã chọn?`)) return;
-    await Promise.all([...selectedIds].map((id) => partnersApi.remove(id)));
-    setShowBulkMenu(false);
-    load();
-  }
-
-  async function handleBulkRank(rank: string) {
-    await Promise.all([...selectedIds].map((id) => partnersApi.update(id, { rank })));
-    setShowBulkMenu(false);
-    setShowRankPicker(false);
-    load();
-  }
-
-  function exportSelectedCSV() {
-    const selected = partners.filter((p) => selectedIds.has(p.id));
-    const headers = ['Mã', 'Tên', 'Loại', 'SĐT', 'Email', 'Tỉnh/TP', 'Hạng', 'Hạn mức CN', 'Công nợ'];
-    const rows = selected.map((p) => [
-      p.code, p.name, TYPE_LABEL[p.type] || p.type,
-      p.phone || '', p.email || '', p.province || '',
-      RANK_LABEL[p.rank] || p.rank, p.creditLimit ?? 0, p.totalDebt ?? 0,
-    ]);
-    const csv = [headers, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = cfg.csvNameSelected; a.click();
-    URL.revokeObjectURL(url);
-    setShowBulkMenu(false);
-  }
-
-  function toggleCol(col: ColKey) {
-    setVisibleCols((prev) => {
-      const next = { ...prev, [col]: !prev[col] };
-      try { localStorage.setItem(colsKey, JSON.stringify(next)); } catch {}
-      return next;
-    });
-  }
-
-  function resetCols() {
-    setVisibleCols(defaultVisibility);
-    try { localStorage.removeItem(colsKey); } catch {}
-  }
-
-  function exportCSV() {
-    const headers = ['Mã', 'Tên', 'Loại', 'SĐT', 'Email', 'Người liên hệ', 'Tỉnh/TP', 'Địa chỉ', 'Hạng', 'Nguồn', 'Hạn mức CN', 'Công nợ', 'Ngân hàng'];
-    const rows = partners.map((p) => [
-      p.code, p.name, TYPE_LABEL[p.type] || p.type,
-      p.phone || '', p.email || '', p.contactPerson || '',
-      p.province || '', p.address || '',
-      RANK_LABEL[p.rank] || p.rank, p.source || '',
-      p.creditLimit ?? 0, p.totalDebt ?? 0,
-      p.bankAccount ? `${p.bankAccount} ${p.bankName || ''}`.trim() : '',
-    ]);
-    const csv = [headers, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = cfg.csvName; a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  const visibleCount = 3 + ALL_COLS.filter((c) => visibleCols[c.key]).length;
-
-  const fmt = (n: number) => n.toLocaleString('vi-VN') + 'đ';
-
-  // KPI cards — mỗi trang chỉ hiện số liệu liên quan
-  type KpiCard = { label: string; value: string | number; sub?: string; iconColor: string; numColor: string; icon: React.ReactNode };
-  const kpiCards: KpiCard[] = fixedTypeGroup === 'customer' ? [
-    { label: 'Tổng khách hàng', value: stats.customers, iconColor: 'text-blue-400', numColor: 'text-blue-600',
-      icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /> },
-    { label: 'Hạng VIP', value: stats.vip, iconColor: 'text-amber-400', numColor: 'text-amber-600',
-      icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /> },
-    { label: 'Khách có công nợ', value: stats.customersWithDebt, sub: `/ ${stats.customers} khách`, iconColor: 'text-rose-400', numColor: 'text-rose-600',
-      icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /> },
-    { label: 'Tổng công nợ KH', value: fmt(stats.totalCustomerDebt), iconColor: 'text-red-400', numColor: 'text-red-600',
-      icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" /> },
-  ] : fixedTypeGroup === 'supplier' ? [
-    { label: 'Tổng nhà cung cấp', value: stats.suppliers, iconColor: 'text-violet-400', numColor: 'text-violet-600',
-      icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /> },
-    { label: 'NCC trong nước', value: stats.domesticSuppliers, iconColor: 'text-teal-400', numColor: 'text-teal-600',
-      icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /> },
-    { label: 'NCC nước ngoài', value: stats.foreignSuppliers, iconColor: 'text-sky-400', numColor: 'text-sky-600',
-      icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /> },
-    { label: 'Tổng nợ NCC', value: fmt(stats.totalSupplierDebt), iconColor: 'text-red-400', numColor: 'text-red-600',
-      icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" /> },
-  ] : fixedTypeGroup === 'freight' ? [
-    { label: 'Tổng đơn vị VC', value: stats.freight, iconColor: 'text-orange-400', numColor: 'text-orange-600',
-      icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /> },
-    { label: 'Đơn vị có công nợ', value: stats.freightWithDebt, sub: `/ ${stats.freight} đơn vị`, iconColor: 'text-rose-400', numColor: 'text-rose-600',
-      icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /> },
-    { label: 'Tổng công nợ phải trả', value: fmt(stats.totalFreightDebt), iconColor: 'text-red-400', numColor: 'text-red-600',
-      icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" /> },
-  ] : [];
-
-  return (
-    <div className="flex flex-col h-full bg-[#f5f6fa]">
-      {/* Page header */}
-      <div className="bg-white border-b border-gray-100 px-7 py-4 flex items-center justify-between flex-shrink-0">
-        <div>
-          <h1 className="text-base font-bold text-gray-900 tracking-tight">{cfg.title}</h1>
-          <p className="text-gray-400 text-xs mt-0.5">{cfg.subtitle}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={exportCSV}
-            className="inline-flex items-center gap-2 border border-gray-200 text-gray-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 active:scale-95 transition-all">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            Xuất CSV
-          </button>
-          <button onClick={handleAdd}
-            className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 active:scale-95 transition-all shadow-sm shadow-blue-200">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-            </svg>
-            {cfg.btnLabel}
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose}/>
+      <div className="relative bg-white rounded-2xl shadow-xl w-[400px] max-h-[85vh] flex flex-col overflow-hidden" onClick={(e)=>e.stopPropagation()}>
+        {/* Header */}
+        <div className="px-5 py-4 border-b border-gray-100 flex items-start justify-between flex-shrink-0">
+          <div>
+            <h3 className="text-sm font-bold text-gray-900">Điều chỉnh cột hiển thị</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Kéo ⠿ để sắp xếp · {visCount} cột đang bật</p>
+          </div>
+          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>
-      </div>
-
-      <div className="flex-1 overflow-auto px-6 py-5 space-y-4">
-        {/* KPI cards */}
-        {!fixedTypeGroup ? (
-          /* Trang tổng quan — layout tài chính với CN phải trả tách tiền tệ */
-          (() => {
-            const net = stats.totalCustomerDebt - stats.totalSupplierDebt - stats.totalFreightDebt;
-            const totalPayableVnd = stats.totalSupplierDebt + stats.totalFreightDebt;
-            const fmtCny = (n: number) => '¥' + n.toLocaleString('zh-CN', { maximumFractionDigits: 0 });
-            const fmtUsd = (n: number) => '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+        {/* List */}
+        <div className="overflow-y-auto flex-1 px-3 py-3 space-y-1">
+          {draft.map((col, idx) => {
+            const def = ALL_COLS.find((c)=>c.key===col.key); if (!def) return null;
+            const isDragging  = dragIdx===idx;
+            const isDragOver  = dragOverIdx===idx && dragIdx!==idx;
+            const isText      = TEXT_DISPLAY_COLS.has(col.key);
             return (
-              <div className="grid grid-cols-3 gap-3">
-                {/* CN phải thu */}
-                <div className="relative overflow-hidden rounded-lg bg-gradient-to-br from-rose-500 to-rose-700 shadow-sm shadow-rose-200 flex items-center gap-2 px-3 py-2">
-                  <div className="w-6 h-6 rounded-md bg-white/15 flex items-center justify-center flex-shrink-0">
-                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[10px] text-gray-400 font-medium leading-none">CN phải thu (KH nợ)</p>
-                    <p className="text-base font-bold text-white mt-0.5 leading-none truncate">{fmt(stats.totalCustomerDebt)}</p>
-                    <p className="text-[10px] text-white/50 mt-0.5 leading-none">{stats.customersWithDebt} khách hàng</p>
-                  </div>
-                </div>
-
-                {/* CN phải trả — tách loại tiền */}
-                <div className="relative overflow-hidden rounded-lg bg-gradient-to-br from-violet-500 to-violet-700 shadow-sm shadow-violet-200 flex items-center gap-2 px-3 py-2">
-                  <div className="w-6 h-6 rounded-md bg-white/15 flex items-center justify-center flex-shrink-0">
-                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/></svg>
-                  </div>
-                  <div className="z-10 min-w-0 flex-1">
-                    <p className="text-[10px] text-gray-400 font-medium leading-none">CN phải trả · {stats.suppliersWithDebt + stats.freightWithDebt} đối tác</p>
-                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                      {stats.debtVnd > 0 && (
-                        <p className="text-sm font-bold text-white leading-none">{fmt(stats.debtVnd)}</p>
-                      )}
-                      {stats.debtCnyForeign > 0 && (
-                        <span className="inline-flex items-center gap-1 bg-white/15 rounded px-1.5 py-0.5">
-                          <span className="text-[10px] text-yellow-200 font-semibold">CNY</span>
-                          <span className="text-xs font-bold text-yellow-100">{fmtCny(stats.debtCnyForeign)}</span>
-                        </span>
-                      )}
-                      {stats.debtUsdForeign > 0 && (
-                        <span className="inline-flex items-center gap-1 bg-white/15 rounded px-1.5 py-0.5">
-                          <span className="text-[10px] text-green-200 font-semibold">USD</span>
-                          <span className="text-xs font-bold text-green-100">{fmtUsd(stats.debtUsdForeign)}</span>
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Công nợ ròng */}
-                {(() => {
-                  const isPos = net >= 0;
-                  return (
-                    <div className={`relative overflow-hidden rounded-lg bg-gradient-to-br ${isPos ? 'from-emerald-500 to-emerald-700 shadow-emerald-200' : 'from-orange-500 to-red-600 shadow-orange-200'} shadow-sm flex items-center gap-2 px-3 py-2`}>
-                      <div className="w-6 h-6 rounded-md bg-white/15 flex items-center justify-center flex-shrink-0">
-                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[10px] text-gray-400 font-medium leading-none">Công nợ ròng</p>
-                        <p className="text-base font-bold text-white mt-0.5 leading-none truncate">{(isPos ? '+' : '') + fmt(net)}</p>
-                        <p className="text-[10px] text-white/50 mt-0.5 leading-none">{isPos ? 'Có lợi' : 'Cần chú ý'}</p>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-            );
-          })()
-        ) : (
-          <div className={`grid gap-3 ${kpiCards.length === 3 ? 'grid-cols-3' : 'grid-cols-4'}`}>
-            {kpiCards.map((k) => (
-              <div key={k.label} className="bg-white rounded-lg border border-gray-100 shadow-sm flex items-center gap-2 px-3 py-2">
-                <div className="w-6 h-6 rounded-md bg-gray-50 flex items-center justify-center flex-shrink-0">
-                  <svg className={`w-3 h-3 ${k.iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">{k.icon}</svg>
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[10px] text-gray-400 font-medium leading-none">{k.label}</p>
-                  <p className={`text-base font-bold mt-0.5 leading-none truncate ${k.numColor}`}>{k.value}</p>
-                  {k.sub && <p className="text-[10px] text-gray-400/60 mt-0.5 leading-none">{k.sub}</p>}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Trang tổng quan: 2 bảng top công nợ */}
-        {!fixedTypeGroup && (
-          <div className="grid grid-cols-2 gap-4">
-            {/* Top công nợ phải thu */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-50">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-rose-400" />
-                  <h3 className="text-sm font-semibold text-gray-800">Top công nợ phải thu</h3>
-                  <span className="text-[11px] text-gray-400">(KH đang nợ)</span>
-                </div>
-                <a href="/dashboard/partners/khach-hang" className="text-[11px] text-blue-500 hover:underline font-medium">Xem tất cả →</a>
-              </div>
-              {topDebt.receivable.length === 0 ? (
-                <div className="py-10 text-center text-gray-300 text-sm">Không có công nợ</div>
-              ) : (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-gray-50/60">
-                      <th className="text-left px-5 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Đối tác</th>
-                      <th className="text-right px-5 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Công nợ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {topDebt.receivable.map((p, i) => (
-                      <tr key={p.id} className="border-t border-gray-50 hover:bg-rose-50/30 transition-colors">
-                        <td className="px-5 py-2.5">
-                          <div className="flex items-center gap-2.5">
-                            <span className="text-[11px] text-gray-300 w-4 text-center font-medium">{i + 1}</span>
-                            <div>
-                              <a href={`/dashboard/partners/${p.id}`} className="font-medium text-gray-800 hover:text-blue-600 text-[13px] transition">{p.name}</a>
-                              <div className="text-[11px] text-gray-400">{p.code} · {p.phone || '—'}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-5 py-2.5 text-right">
-                          {(() => {
-                            const debt = Number(p.totalDebt);
-                            const limit = Number(p.creditLimit);
-                            const overLimit = limit > 0 && debt > limit;
-                            return (
-                              <>
-                                <span className={`font-semibold text-[13px] ${overLimit ? 'text-red-500' : 'text-emerald-500'}`}>
-                                  {debt.toLocaleString('vi-VN')}đ
-                                </span>
-                                {limit > 0 && (
-                                  <div className={`text-[10px] mt-0.5 ${overLimit ? 'text-red-400 font-medium' : 'text-gray-400'}`}>
-                                    HM: {limit.toLocaleString('vi-VN')}đ{overLimit && ' ⚠ Vượt'}
-                                  </div>
-                                )}
-                              </>
-                            );
-                          })()}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-
-            {/* Top công nợ phải trả */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-50">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-violet-400" />
-                  <h3 className="text-sm font-semibold text-gray-800">Top công nợ phải trả</h3>
-                  <span className="text-[11px] text-gray-400">(mình đang nợ)</span>
-                </div>
-                <a href="/dashboard/partners/nha-cung-cap" className="text-[11px] text-blue-500 hover:underline font-medium">Xem NCC →</a>
-              </div>
-              {topDebt.payable.length === 0 ? (
-                <div className="py-10 text-center text-gray-300 text-sm">Không có công nợ</div>
-              ) : (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-gray-50/60">
-                      <th className="text-left px-5 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Đối tác</th>
-                      <th className="text-right px-5 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Công nợ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {topDebt.payable.map((p, i) => (
-                      <tr key={p.id} className="border-t border-gray-50 hover:bg-violet-50/30 transition-colors">
-                        <td className="px-5 py-2.5">
-                          <div className="flex items-center gap-2.5">
-                            <span className="text-[11px] text-gray-300 w-4 text-center font-medium">{i + 1}</span>
-                            <div>
-                              <a href={`/dashboard/partners/${p.id}`} className="font-medium text-gray-800 hover:text-blue-600 text-[13px] transition">{p.name}</a>
-                              <div className="text-[11px] text-gray-400">
-                                {p.code} · <span className={`${TYPE_STYLE[p.type]} px-1.5 py-0.5 rounded text-[10px]`}>{TYPE_LABEL[p.type]}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-5 py-2.5 text-right">
-                          <span className="font-semibold text-violet-600 text-[13px]">
-                            {Number(p.supplierDebt ?? 0).toLocaleString('vi-VN')}đ
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Main card — chỉ hiện ở trang con */}
-        {fixedTypeGroup && <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-          {/* Bulk action bar */}
-          {selectedIds.size > 0 && (
-            <div className="flex items-center gap-3 px-5 py-2.5 bg-blue-50 border-b border-blue-100">
-              <span className="text-sm font-semibold text-blue-700">
-                Đã chọn <span className="bg-blue-600 text-white text-xs px-1.5 py-0.5 rounded-md">{selectedIds.size}</span> đối tác
-              </span>
-              <div className="relative" ref={bulkMenuRef}>
-                <button
-                  onClick={() => { setShowBulkMenu((v) => !v); setShowRankPicker(false); }}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-blue-200 text-blue-700 text-xs font-semibold rounded-lg hover:bg-blue-50 transition shadow-sm">
-                  Chọn thao tác
-                  <svg className={`w-3.5 h-3.5 transition-transform ${showBulkMenu ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              <div key={col.key} draggable
+                onDragStart={(e)=>handleDragStart(e,idx)} onDragOver={(e)=>handleDragOver(e,idx)}
+                onDrop={(e)=>handleDrop(e,idx)} onDragEnd={handleDragEnd}
+                className={[
+                  'flex items-center gap-2.5 px-3 py-2.5 rounded-lg border transition-all select-none cursor-grab active:cursor-grabbing',
+                  isDragOver  ? 'border-blue-400 bg-blue-50 shadow-sm' : col.visible ? 'border-blue-100 bg-blue-50/40' : 'border-gray-100 bg-white',
+                  isDragging  ? 'opacity-30 scale-95' : '',
+                ].join(' ')}>
+                {/* Drag handle — 6 dots */}
+                <svg className="w-3.5 h-3.5 flex-shrink-0 text-gray-300" fill="currentColor" viewBox="0 0 16 16">
+                  <circle cx="5.5" cy="4" r="1.2"/><circle cx="10.5" cy="4" r="1.2"/>
+                  <circle cx="5.5" cy="8" r="1.2"/><circle cx="10.5" cy="8" r="1.2"/>
+                  <circle cx="5.5" cy="12" r="1.2"/><circle cx="10.5" cy="12" r="1.2"/>
+                </svg>
+                <input type="checkbox" checked={col.visible} disabled={!!def.required} onChange={()=>toggle(col.key)}
+                  className="w-4 h-4 accent-blue-600 rounded flex-shrink-0 cursor-pointer disabled:cursor-default"/>
+                <span className="text-sm text-gray-700 font-medium flex-1 leading-none">{def.label}</span>
+                {def.required && <span className="text-[10px] text-gray-300 flex-shrink-0">bắt buộc</span>}
+                {/* Pin button — luôn hiện */}
+                <button onClick={(e)=>{ e.stopPropagation(); setPin(col.key, !col.pinned); }}
+                  title={col.pinned ? 'Bỏ ghim cột' : 'Ghim cột (cố định khi kéo ngang)'}
+                  className={`flex-shrink-0 w-6 h-6 flex items-center justify-center rounded transition-colors ${col.pinned?'text-blue-500 bg-blue-50':'text-gray-400 hover:text-blue-500 hover:bg-blue-50'}`}>
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M16 9V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v5c0 1.66-1.34 3-3 3v2h5.97v7l1 1 1-1v-7H19v-2c-1.66 0-3-1.34-3-3z"/>
                   </svg>
                 </button>
-                {showBulkMenu && (
-                  <div className="absolute left-0 top-full mt-1.5 z-50 bg-white shadow-xl rounded-xl border border-gray-100 w-52 py-1.5">
-                    <button onClick={exportSelectedCSV}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition">
-                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                      </svg>
-                      Xuất CSV đã chọn
-                    </button>
-                    <div className="h-px bg-gray-100 mx-3 my-1" />
-                    <div>
-                      <button
-                        onClick={() => setShowRankPicker((v) => !v)}
-                        className="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition">
-                        <div className="flex items-center gap-3">
-                          <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                          </svg>
-                          Cập nhật hạng
-                        </div>
-                        <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${showRankPicker ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </button>
-                      {showRankPicker && (
-                        <div className="bg-gray-50 mx-2 mb-1 rounded-lg overflow-hidden">
-                          {[
-                            { value: 'new',    label: 'Mới',        color: 'text-gray-500' },
-                            { value: 'normal', label: 'Thường',     color: 'text-sky-600'  },
-                            { value: 'loyal',  label: 'Thân thiết', color: 'text-emerald-600' },
-                            { value: 'vip',    label: '★ VIP',      color: 'text-amber-500' },
-                          ].map((r) => (
-                            <button key={r.value} onClick={() => handleBulkRank(r.value)}
-                              className={`w-full text-left px-4 py-2 text-sm font-medium ${r.color} hover:bg-white transition`}>
-                              {r.label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <div className="h-px bg-gray-100 mx-3 my-1" />
-                    <button onClick={handleBulkDelete}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                      Xóa đã chọn
-                    </button>
+                {/* Display type — chỉ text cols, luôn hiện */}
+                {isText && (
+                  <div className="flex items-center rounded-md border border-gray-200 overflow-hidden flex-shrink-0" onClick={(e)=>e.stopPropagation()}>
+                    {(['truncate','clamp','wrap'] as const).map((dt, i) => {
+                      const labels = ['Cắt','2 dòng','Đầy đủ'];
+                      const active = (col.displayType ?? 'truncate') === dt;
+                      return (
+                        <button key={dt} onClick={()=>setDT(col.key, dt)}
+                          className={['px-1.5 py-0.5 text-[10px] font-medium transition-colors leading-none', i>0?'border-l border-gray-200':'', active?'bg-blue-600 text-white':'bg-white text-gray-400 hover:bg-gray-50'].join(' ')}>
+                          {labels[i]}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
-              <button onClick={() => setSelectedIds(new Set())}
-                className="ml-auto text-xs text-blue-400 hover:text-blue-600 flex items-center gap-1 transition font-medium">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                Bỏ chọn tất cả
-              </button>
-            </div>
-          )}
-
-          {/* Toolbar */}
-          <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-50">
-            {/* Column toggle */}
-            <div className="relative" ref={colMenuRef}>
-              <button onClick={() => setShowColMenu((v) => !v)}
-                className={`w-8 h-8 flex items-center justify-center border rounded-lg transition ${showColMenu ? 'border-blue-300 bg-blue-50 text-blue-500' : 'border-gray-200 text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
-                title="Tùy chỉnh cột hiển thị">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </button>
-              {showColMenu && (
-                <div className="absolute left-0 top-full mt-1.5 z-50 bg-white shadow-2xl rounded-xl border border-gray-100 w-64 py-2" style={{ maxHeight: '420px', overflowY: 'auto' }}>
-                  <div className="flex items-center justify-between px-4 pt-1 pb-2 sticky top-0 bg-white border-b border-gray-50">
-                    <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Hiển thị cột</p>
-                    <button onClick={resetCols} className="text-[11px] text-blue-500 hover:underline font-medium">Mặc định</button>
-                  </div>
-                  {ALL_COLS.map((col) => (
-                    <label key={col.key} className="flex items-center gap-3 px-4 py-2.5 hover:bg-blue-50/50 cursor-pointer">
-                      <input type="checkbox" checked={visibleCols[col.key]} onChange={() => toggleCol(col.key)}
-                        className="w-4 h-4 rounded border-gray-300 text-blue-600 cursor-pointer accent-blue-600" />
-                      <span className="text-sm text-gray-700">{col.label}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Search */}
-            <div className="relative">
-              <svg className="w-3.5 h-3.5 text-gray-300 absolute left-2.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input type="text" placeholder="Tên, SĐT, mã..." value={search}
-                onChange={(e) => setSearchReset(e.target.value)}
-                className="pl-8 pr-4 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-48 bg-gray-50/80 placeholder:text-gray-300" />
-            </div>
-
-            {/* Province searchable dropdown — tự cập nhật từ DB */}
-            <ProvinceSelect value={filterProvince} onChange={setProvinceReset} provinces={provinces} />
-
-            {/* Type filter — chỉ hiện ở trang tổng quan */}
-            {!fixedTypeGroup && (
-              <select value={filterType} onChange={(e) => setTypeReset(e.target.value)}
-                className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50/80 cursor-pointer">
-                <option value="">Tất cả loại</option>
-                <option value="customer">Khách hàng</option>
-                <option value="supplier">Nhà cung cấp</option>
-                <option value="both">KH + NCC</option>
-                <option value="freight">Đơn vị VC</option>
-              </select>
-            )}
-
-            <select value={filterRank} onChange={(e) => setRankReset(e.target.value)}
-              className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50/80 cursor-pointer">
-              <option value="">Tất cả hạng</option>
-              <option value="new">Mới</option>
-              <option value="normal">Thường</option>
-              <option value="loyal">Thân thiết</option>
-              <option value="vip">VIP</option>
-            </select>
-
-            {(search || filterType || filterRank || filterProvince.length > 0) && (
-              <button onClick={() => { setPage(1); setSearch(''); setFilterType(''); setFilterRank(''); setFilterProvince([]); }}
-                className="text-xs text-gray-300 hover:text-red-400 transition flex items-center gap-1">
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                Xóa lọc
-              </button>
-            )}
-
-            <span className="ml-auto text-xs text-gray-300">{total} kết quả</span>
+            );
+          })}
+        </div>
+        {/* Footer */}
+        <div className="px-5 py-3.5 border-t border-gray-100 flex items-center justify-between flex-shrink-0">
+          <button onClick={()=>setDraft([...defaultOrder])} className="text-xs text-gray-400 hover:text-gray-600 font-medium transition">Khôi phục mặc định</button>
+          <div className="flex gap-2">
+            <button onClick={onClose} className="px-4 py-1.5 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition">Hủy</button>
+            <button onClick={()=>onSave(draft)} className="px-4 py-1.5 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition">Lưu</button>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-          {/* Table */}
-          <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-max">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="w-10 pl-4 py-2.5 border-b border-gray-100">
-                  <input type="checkbox"
-                    checked={partners.length > 0 && selectedIds.size === partners.length}
-                    ref={(el) => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < partners.length; }}
-                    onChange={toggleSelectAll}
-                    className="w-4 h-4 rounded border-gray-300 accent-blue-600 cursor-pointer" />
-                </th>
-                <PlainTh label="Mã" />
-                <SortTh label="Tên đối tác" field="name" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
-                {visibleCols['Liên hệ'] && <PlainTh label="Liên hệ" />}
-                {visibleCols['Người liên hệ'] && <PlainTh label="Người liên hệ" />}
-                {visibleCols['Tỉnh/TP'] && <PlainTh label="Tỉnh/TP" />}
-                {visibleCols['Địa chỉ'] && <PlainTh label="Địa chỉ" />}
-                {visibleCols['Hạng'] && <SortTh label="Hạng" field="rank" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />}
-                {visibleCols['Nguồn'] && <PlainTh label="Nguồn" />}
-                {visibleCols['Nhóm'] && <PlainTh label="Nhóm" />}
-                {visibleCols['Hạn mức CN'] && <SortTh label="Hạn mức CN" field="creditLimit" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />}
-                {visibleCols['Công nợ'] && <SortTh label="Công nợ" field="totalDebt" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />}
-                {visibleCols['Tổng đơn hàng'] && <SortTh label="Tổng đơn hàng" field="totalOrders" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />}
-                {visibleCols['Tổng chi tiêu'] && <SortTh label="Tổng chi tiêu" field="totalRevenue" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />}
-                {visibleCols['Ngân hàng'] && <PlainTh label="Ngân hàng" />}
-                {visibleCols['Nhân viên PT'] && <PlainTh label="Nhân viên PT" />}
-                <th className="border-b border-gray-100 w-24" />
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={visibleCount} className="text-center py-14">
-                  <div className="inline-flex flex-col items-center gap-2 text-gray-300">
-                    <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                    </svg>
-                    <span className="text-xs">Đang tải...</span>
-                  </div>
-                </td></tr>
-              ) : partners.length === 0 ? (
-                <tr><td colSpan={visibleCount} className="text-center py-14">
-                  <svg className="w-10 h-10 mx-auto text-gray-200 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  <p className="text-gray-300 text-sm">{cfg.emptyLabel}</p>
-                  <button onClick={handleAdd} className="mt-2 text-blue-500 text-xs hover:underline font-medium">{cfg.emptyBtn}</button>
-                </td></tr>
-              ) : partners.map((p) => (
-                <tr key={p.id} className={`border-b border-gray-50 last:border-0 transition-colors group ${selectedIds.has(p.id) ? 'bg-blue-50/40' : 'hover:bg-blue-50/20'}`}>
-                  <td className="w-10 pl-4 py-3.5">
-                    <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleSelect(p.id)}
-                      className="w-4 h-4 rounded border-gray-300 accent-blue-600 cursor-pointer" />
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <Link href={`/dashboard/partners/${p.id}`}
-                      className="font-mono text-[11px] bg-blue-50 text-blue-500 hover:bg-blue-100 px-2 py-1 rounded-md tracking-wide transition">
-                      {p.code}
-                    </Link>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <Link href={`/dashboard/partners/${p.id}`}
-                      className="font-semibold text-gray-800 text-sm hover:text-blue-600 transition block">
-                      {p.name}
-                    </Link>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <span className={`text-[11px] px-1.5 py-0.5 rounded font-medium ${TYPE_STYLE[p.type] || 'text-gray-500 bg-gray-50'}`}>
-                        {TYPE_LABEL[p.type] || p.type}
-                      </span>
-                      <span className="text-[11px] text-gray-300">{p.customerType === 'individual' ? 'Cá nhân' : 'Doanh nghiệp'}</span>
-                    </div>
-                  </td>
-                  {visibleCols['Liên hệ'] && (
-                    <td className="px-5 py-3.5">
-                      <div className="text-gray-700 text-sm">{p.phone || <span className="text-gray-200">—</span>}</div>
-                      {p.email && <div className="text-[11px] text-gray-400 mt-0.5">{p.email}</div>}
-                    </td>
-                  )}
-                  {visibleCols['Người liên hệ'] && (
-                    <td className="px-5 py-3.5 text-sm text-gray-600">{p.contactPerson || <span className="text-gray-200">—</span>}</td>
-                  )}
-                  {visibleCols['Tỉnh/TP'] && (
-                    <td className="px-5 py-3.5 text-sm text-gray-600">{p.province || <span className="text-gray-200">—</span>}</td>
-                  )}
-                  {visibleCols['Địa chỉ'] && (
-                    <td className="px-5 py-3.5 text-sm text-gray-600 max-w-[160px]">
-                      <span className="truncate block">{p.address || <span className="text-gray-200">—</span>}</span>
-                    </td>
-                  )}
-                  {visibleCols['Hạng'] && (
-                    <td className="px-5 py-3.5">
-                      <span className={`text-[11px] px-2.5 py-1 rounded-full border font-medium ${RANK_STYLE[p.rank]}`}>
-                        {p.rank === 'vip' && '★ '}{RANK_LABEL[p.rank]}
-                      </span>
-                    </td>
-                  )}
-                  {visibleCols['Nguồn'] && (
-                    <td className="px-5 py-3.5 text-sm text-gray-600">{p.source || <span className="text-gray-200">—</span>}</td>
-                  )}
-                  {visibleCols['Nhóm'] && (
-                    <td className="px-5 py-3.5 text-sm text-gray-600">{p.group || <span className="text-gray-200">—</span>}</td>
-                  )}
-                  {visibleCols['Hạn mức CN'] && (
-                    <td className="px-5 py-3.5 text-sm">
-                      {Number(p.creditLimit) > 0
-                        ? <span className="text-gray-700 font-medium">{Number(p.creditLimit).toLocaleString('vi-VN')}đ</span>
-                        : <span className="text-gray-200">—</span>}
-                    </td>
-                  )}
-                  {visibleCols['Công nợ'] && (
-                    <td className="px-5 py-3.5 text-sm">
-                      {Number(p.totalDebt) > 0
-                        ? <span className="text-red-500 font-semibold">{Number(p.totalDebt).toLocaleString('vi-VN')}đ</span>
-                        : <span className="text-gray-300">0đ</span>}
-                    </td>
-                  )}
-                  {visibleCols['Tổng đơn hàng'] && (
-                    <td className="px-5 py-3.5 text-sm text-center">
-                      {(p.totalOrders || 0) > 0
-                        ? <span className="font-semibold text-gray-700">{p.totalOrders}</span>
-                        : <span className="text-gray-300">0</span>}
-                    </td>
-                  )}
-                  {visibleCols['Tổng chi tiêu'] && (
-                    <td className="px-5 py-3.5 text-sm">
-                      {Number(p.totalRevenue) > 0
-                        ? <span className="font-semibold text-emerald-600">{Number(p.totalRevenue).toLocaleString('vi-VN')}đ</span>
-                        : <span className="text-gray-300">0đ</span>}
-                    </td>
-                  )}
-                  {visibleCols['Ngân hàng'] && (
-                    <td className="px-5 py-3.5 text-sm text-gray-600">
-                      {p.bankAccount
-                        ? <div><div className="font-mono text-xs">{p.bankAccount}</div><div className="text-[11px] text-gray-400">{p.bankName}</div></div>
-                        : <span className="text-gray-200">—</span>}
-                    </td>
-                  )}
-                  {visibleCols['Nhân viên PT'] && (
-                    <td className="px-5 py-3.5 text-sm text-gray-600">
-                      {p.assignedStaff
-                        ? <span className="inline-flex items-center gap-1.5">
-                            <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 text-[9px] font-bold flex items-center justify-center flex-shrink-0">
-                              {p.assignedStaff.name.charAt(0)}
-                            </span>
-                            {p.assignedStaff.name}
-                          </span>
-                        : <span className="text-gray-200">—</span>}
-                    </td>
-                  )}
-                  <td className="px-4 py-3.5">
-                    <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => handleEdit(p)}
-                        className="px-3 py-1.5 text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg font-medium transition">Sửa</button>
-                      <button onClick={() => handleDelete(p.id)}
-                        className="px-3 py-1.5 text-xs bg-red-50 text-red-400 hover:bg-red-100 rounded-lg font-medium transition">Xóa</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+// ── Main component ─────────────────────────────────────────────────────────
+export default function PartnersListPage({ fixedTypeGroup }: { fixedTypeGroup?:'customer'|'supplier'|'freight' }) {
+  const router = useRouter();
+  const ctx = fixedTypeGroup ?? 'all';
+  const cfg = fixedTypeGroup ? PAGE_CONFIG[fixedTypeGroup] : OVERVIEW_CONFIG;
+
+  const [partners,       setPartners]       = useState<Partner[]>([]);
+  const [stats,          setStats]          = useState<Stats>({ total:0,customers:0,suppliers:0,freight:0,vip:0,customersWithDebt:0,totalCustomerDebt:0,suppliersWithDebt:0,totalSupplierDebt:0,freightWithDebt:0,totalFreightDebt:0,domesticSuppliers:0,foreignSuppliers:0 });
+  const [total,          setTotal]          = useState(0);
+  const [page,           setPage]           = useState(1);
+  const [totalPages,     setTotalPages]     = useState(1);
+  const [limit,          setLimit]          = useState<20|50|100>(20);
+  const [loading,        setLoading]        = useState(true);
+  const [selectedIds,    setSelectedIds]    = useState<Set<number>>(new Set());
+  const [showBulkMenu,   setShowBulkMenu]   = useState(false);
+  const [showRankPick,   setShowRankPick]   = useState(false);
+  const [search,         setSearch]         = useState('');
+  const [filterType,     setFilterType]     = useState('');
+  const [filterRank,     setFilterRank]     = useState('');
+  const [filterProvince, setFilterProvince] = useState<string[]>([]);
+  const [filterGroup,    setFilterGroup]    = useState('');
+  const [provinces,      setProvinces]      = useState<string[]>([]);
+  const [groups,         setGroups]         = useState<string[]>([]);
+  const [sortBy,         setSortBy]         = useState('createdAt');
+  const [sortOrder,      setSortOrder]      = useState<'ASC'|'DESC'>('DESC');
+  const [hoveredId,      setHoveredId]      = useState<number|null>(null);
+  const [highlightId,    setHighlightId]    = useState<number|null>(null);
+  const [editingCell,    setEditingCell]    = useState<{id:number;field:string;value:string}|null>(null);
+  const [expandedCell,   setExpandedCell]   = useState<{label:string;text:string}|null>(null);
+  const [showColModal,   setShowColModal]   = useState(false);
+  const [selectionMode,  setSelectionMode]  = useState(false);
+  const showCheckboxes = selectionMode || selectedIds.size > 0;
+  const [colOrder,       setColOrder]       = useState<ColItem[]>(() => defaultColOrder(ctx));
+  const [colWidths,      setColWidths]      = useState<Record<string,number>>(() => {
+    try { const s = localStorage.getItem(getWidthsKey(ctx)); if (s) return { ...DEFAULT_COL_WIDTHS, ...JSON.parse(s) }; } catch {}
+    return { ...DEFAULT_COL_WIDTHS };
+  });
+
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const savedScrollLeft = useRef(0);
+  const bulkRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { setColOrder(loadColOrder(ctx)); }, [ctx]);
+
+  useEffect(() => {
+    function h(e:MouseEvent){ if (bulkRef.current && !bulkRef.current.contains(e.target as Node)){ setShowBulkMenu(false); setShowRankPick(false); } }
+    document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  // ── Columns ─────────────────────────────────────────────────────────
+  const visibleCols = colOrder.filter((c)=>c.visible);
+
+  const stickyLeft = useMemo<Record<string,number>>(() => {
+    const r:Record<string,number> = {}; let left = showCheckboxes ? 40 : 0;
+    for (const col of visibleCols) {
+      if (col.pinned){ r[col.key]=left; left += colWidths[col.key]??DEFAULT_COL_WIDTHS[col.key]??120; }
+    }
+    return r;
+  }, [visibleCols, colWidths, showCheckboxes]);
+
+  function onResizeMouseDown(e:React.MouseEvent, colKey:string) {
+    e.preventDefault(); e.stopPropagation();
+    const startX = e.clientX; const startW = colWidths[colKey]??DEFAULT_COL_WIDTHS[colKey]??120;
+    document.body.style.cursor='col-resize'; document.body.style.userSelect='none';
+    function onMove(ev:MouseEvent){ const w=Math.max(60,startW+ev.clientX-startX); setColWidths((p)=>{ const n={...p,[colKey]:w}; try{localStorage.setItem(getWidthsKey(ctx),JSON.stringify(n));}catch{} return n; }); }
+    function onUp(){ document.body.style.cursor=''; document.body.style.userSelect=''; document.removeEventListener('mousemove',onMove); document.removeEventListener('mouseup',onUp); }
+    document.addEventListener('mousemove',onMove); document.addEventListener('mouseup',onUp);
+  }
+
+  function handleSaveCols(newOrder:ColItem[]) {
+    setColOrder(newOrder); try{localStorage.setItem(getStorageKey(ctx),JSON.stringify(newOrder));}catch{}
+    setShowColModal(false);
+  }
+
+  function getDisplayType(key:string): 'truncate'|'clamp'|'wrap' {
+    return colOrder.find((c)=>c.key===key)?.displayType ?? 'truncate';
+  }
+
+  // ── Data loading ─────────────────────────────────────────────────────
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params: Record<string,string> = { sortBy, sortOrder, page:String(page), limit:String(limit) };
+      if (search) params.search = search;
+      if (fixedTypeGroup) params.typeGroup=fixedTypeGroup; else if (filterType) params.type=filterType;
+      if (filterRank) params.rank=filterRank;
+      if (filterProvince.length>0) params.province=filterProvince.join(',');
+      if (filterGroup) params.group=filterGroup;
+      const [res, s] = await Promise.all([partnersApi.getAll(params), partnersApi.getStats()]);
+      setPartners(res.data); setTotal(res.total); setTotalPages(res.totalPages||1); setStats(s); setSelectedIds(new Set());
+      if (res.data?.length>0){
+        const g=[...new Set<string>(res.data.map((p:Partner)=>p.group).filter(Boolean) as string[])].sort();
+        setGroups((prev)=>[...new Set([...prev,...g])].sort());
+      }
+    } finally { setLoading(false); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, filterType, filterRank, filterProvince.join(','), filterGroup, sortBy, sortOrder, page, limit, fixedTypeGroup]);
+
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { partnersApi.getProvinces().then(setProvinces).catch(()=>{}); }, []);
+
+  // Restore scroll position after reload
+  useEffect(() => {
+    if (!loading && savedScrollLeft.current>0) {
+      requestAnimationFrame(() => { if (tableScrollRef.current) tableScrollRef.current.scrollLeft=savedScrollLeft.current; });
+    }
+  }, [loading]);
+
+  // ── Sort / select ─────────────────────────────────────────────────────
+  function handleSort(field:string){
+    savedScrollLeft.current=tableScrollRef.current?.scrollLeft??0;
+    setPage(1);
+    if (sortBy===field) setSortOrder((o)=>o==='ASC'?'DESC':'ASC'); else { setSortBy(field); setSortOrder('DESC'); }
+  }
+  function toggleSelect(id:number){ setSelectionMode(true); setSelectedIds((p)=>{ const n=new Set(p); n.has(id)?n.delete(id):n.add(id); return n; }); }
+  function toggleSelectAll(){ setSelectionMode(true); setSelectedIds(selectedIds.size===partners.length ? new Set() : new Set(partners.map((p)=>p.id))); }
+  function exitSelectionMode(){ setSelectionMode(false); setSelectedIds(new Set()); }
+
+  // ── Bulk ──────────────────────────────────────────────────────────────
+  async function handleBulkDelete(){
+    if (!confirm(`Xác nhận xóa ${selectedIds.size} đối tác đã chọn?`)) return;
+    await Promise.all([...selectedIds].map((id)=>partnersApi.remove(id)));
+    setShowBulkMenu(false); load();
+  }
+  async function handleBulkRank(rank:string){
+    await Promise.all([...selectedIds].map((id)=>partnersApi.update(id,{rank})));
+    setShowBulkMenu(false); setShowRankPick(false); load();
+  }
+
+  // ── Inline edit ───────────────────────────────────────────────────────
+  async function saveEdit(){
+    if (!editingCell) return;
+    const { id, field, value } = editingCell; setEditingCell(null);
+    const parsed: unknown = NUM_EDIT_FIELDS.has(field) ? (value.trim()===''?null:Number(value)) : (value?.trim()||null);
+    try { await partnersApi.update(id,{[field]:parsed}); setPartners((p)=>p.map((r)=>r.id===id?{...r,[field]:parsed} as Partner:r)); } catch {}
+  }
+
+  // ── CSV export ────────────────────────────────────────────────────────
+  function exportCSV(ids?:Set<number>){
+    const rows = ids ? partners.filter((p)=>ids.has(p.id)) : partners;
+    const headers = ['Mã','Tên','Loại','SĐT','Email','Tỉnh/TP','Hạng','Nhóm','Đánh giá','Tiền tệ','Công nợ KH','Công nợ NCC','Hạn mức CN','Tổng đơn','Doanh thu','Ngân hàng','Số TK','Chủ TK','Ghi chú','Trạng thái'];
+    const data = rows.map((p)=>[p.code,p.name,TYPE_LABEL[p.type]||p.type,p.phone||'',p.email||'',p.province||'',RANK_LABEL[p.rank]||p.rank,p.group||'',p.rating??'',p.currency||'VND',p.totalDebt??0,p.supplierDebt??0,p.creditLimit??0,p.totalOrders??0,p.totalRevenue??0,p.bankName||'',p.bankAccount||'',p.bankAccountHolder||'',p.notes||'',p.isActive?'Hoạt động':'Ngừng']);
+    const csv=[headers,...data].map((r)=>r.map((c)=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=cfg.csvName; a.click(); URL.revokeObjectURL(url);
+    setShowBulkMenu(false);
+  }
+
+  // ── Pencil button ─────────────────────────────────────────────────────
+  function PencilBtn({ id, field, val }:{ id:number; field:string; val:string }) {
+    return (
+      <button className="opacity-0 group-hover/ec:opacity-100 flex-shrink-0 w-5 h-5 flex items-center justify-center text-gray-400 hover:text-blue-600 transition-all"
+        onClick={(e)=>{ e.stopPropagation(); setEditingCell({id,field,value:val}); }}>
+        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+      </button>
+    );
+  }
+
+  // ── Cell content helpers — trả về JSX nội dung (KHÔNG bao gồm <td>) ─
+  function textContent(key:string, val:string|null|undefined, id:number, cls='text-gray-600', multiline=false) {
+    const label = ALL_COLS.find((c)=>c.key===key)?.label??key;
+    if (editingCell?.id===id && editingCell?.field===key) {
+      if (multiline) return <textarea autoFocus rows={2} value={editingCell.value} onChange={(e)=>setEditingCell({...editingCell,value:e.target.value})} onKeyDown={(e)=>{if(e.key==='Escape')setEditingCell(null);}} onBlur={saveEdit} className="w-full text-sm border border-blue-400 rounded-md px-2 py-1 outline-none focus:ring-1 focus:ring-blue-400 bg-white resize-none" onClick={(e)=>e.stopPropagation()}/>;
+      return <input autoFocus value={editingCell.value} onChange={(e)=>setEditingCell({...editingCell,value:e.target.value})} onKeyDown={(e)=>{if(e.key==='Enter')saveEdit();if(e.key==='Escape')setEditingCell(null);}} onBlur={saveEdit} className="w-full text-sm border border-blue-400 rounded-md px-2 py-1 outline-none focus:ring-1 focus:ring-blue-400 bg-white" onClick={(e)=>e.stopPropagation()}/>;
+    }
+    const dt=getDisplayType(key);
+    const pb=<PencilBtn id={id} field={key} val={val||''}/>;
+    if (!val) return <div className="flex items-center gap-0.5 group/ec"><span className="text-sm text-gray-300 flex-1">—</span>{pb}</div>;
+    if (dt==='clamp') return <div className="flex items-start gap-0.5 group/ec"><span className={`text-sm ${cls} line-clamp-2 whitespace-normal break-words cursor-pointer hover:text-blue-500 flex-1`} onClick={(e)=>{e.stopPropagation();setExpandedCell({label,text:val});}}>{val}</span>{pb}</div>;
+    if (dt==='wrap')  return <div className="flex items-start gap-0.5 group/ec"><span className={`text-sm ${cls} whitespace-normal break-words flex-1`}>{val}</span>{pb}</div>;
+    return <div className="flex items-center gap-0.5 group/ec"><span className={`text-sm ${cls} truncate flex-1`} title={val}>{val}</span>{pb}</div>;
+  }
+
+  function numContent(field:string, val:number|null|undefined, id:number, display:(v:number)=>string, cls='text-gray-700') {
+    if (editingCell?.id===id && editingCell?.field===field) return <input autoFocus type="number" value={editingCell.value} onChange={(e)=>setEditingCell({...editingCell,value:e.target.value})} onKeyDown={(e)=>{if(e.key==='Enter')saveEdit();if(e.key==='Escape')setEditingCell(null);}} onBlur={saveEdit} className="w-full text-sm border border-blue-400 rounded-md px-2 py-1 outline-none focus:ring-1 focus:ring-blue-400 bg-white" onClick={(e)=>e.stopPropagation()}/>;
+    return <div className="flex items-center gap-0.5 group/ec"><span className={`text-sm ${cls} flex-1`}>{val!=null?display(val):<span className="text-gray-300">—</span>}</span><PencilBtn id={id} field={field} val={val!=null?String(val):''}/></div>;
+  }
+
+  // ── renderCell — tạo <td> với đầy đủ style sticky + width ───────────
+  function renderCell(key:string, p:Partner) {
+    const w = colWidths[key]??DEFAULT_COL_WIDTHS[key]??120;
+    const isSticky = key in stickyLeft;
+    const rowBg = hoveredId===p.id?'#eff6ff':highlightId===p.id?'#fefce8':'white';
+    const style:React.CSSProperties = {
+      minWidth:w, maxWidth:w,
+      ...(isSticky?{position:'sticky',left:stickyLeft[key],zIndex:10,backgroundColor:rowBg}:{}),
+    };
+    const tdCls=`px-4 py-1.5 text-sm text-gray-600 ${isSticky?'shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]':''}`;
+
+    switch (key) {
+      case 'code': return <td key={key} style={style} className={tdCls}><span className="font-mono text-[11px] bg-gray-50 border border-gray-200 text-gray-600 px-2 py-1 rounded-md">{p.code}</span></td>;
+
+      case 'name': return <td key={key} style={style} className={tdCls}>
+        {editingCell?.id===p.id&&editingCell?.field==='name'
+          ? <input autoFocus value={editingCell.value} onChange={(e)=>setEditingCell({...editingCell,value:e.target.value})} onKeyDown={(e)=>{if(e.key==='Enter')saveEdit();if(e.key==='Escape')setEditingCell(null);}} onBlur={saveEdit} className="w-full text-sm border border-blue-400 rounded-md px-2 py-1 outline-none" onClick={(e)=>e.stopPropagation()}/>
+          : (()=>{ const dt=getDisplayType('name'); return <div className="flex items-center gap-0.5 group/ec"><span className={`text-sm font-semibold text-gray-900 flex-1 ${dt==='truncate'?'truncate':dt==='clamp'?'line-clamp-2 break-words whitespace-normal':'whitespace-normal break-words'}`} title={dt==='truncate'?p.name:undefined}>{p.name}</span><PencilBtn id={p.id} field="name" val={p.name}/></div>; })()
+        }
+      </td>;
+
+      case 'type': return <td key={key} style={style} className={tdCls}><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TYPE_STYLE[p.type]||'text-gray-500 bg-gray-50'}`}>{TYPE_LABEL[p.type]||p.type}</span></td>;
+      case 'customerType': return <td key={key} style={style} className={tdCls}><span className="text-sm text-gray-500">{p.customerType==='business'?'Doanh nghiệp':'Cá nhân'}</span></td>;
+
+      case 'phone': return <td key={key} style={style} className={tdCls} onClick={(e)=>e.stopPropagation()}>
+        {editingCell?.id===p.id&&editingCell?.field==='phone'
+          ? <input autoFocus type="tel" value={editingCell.value} onChange={(e)=>setEditingCell({...editingCell,value:e.target.value})} onKeyDown={(e)=>{if(e.key==='Enter')saveEdit();if(e.key==='Escape')setEditingCell(null);}} onBlur={saveEdit} className="w-full text-sm border border-blue-400 rounded-md px-2 py-1 outline-none"/>
+          : <div className="flex items-center gap-0.5 group/ec">{p.phone?<a href={`tel:${p.phone}`} onClick={(e)=>e.stopPropagation()} className="text-sm text-blue-600 hover:underline flex-1 truncate">{p.phone}</a>:<span className="text-gray-300 text-sm flex-1">—</span>}<PencilBtn id={p.id} field="phone" val={p.phone||''}/></div>
+        }
+      </td>;
+
+      case 'contactPhone2': return <td key={key} style={style} className={tdCls} onClick={(e)=>e.stopPropagation()}>
+        {editingCell?.id===p.id&&editingCell?.field==='contactPhone2'
+          ? <input autoFocus type="tel" value={editingCell.value} onChange={(e)=>setEditingCell({...editingCell,value:e.target.value})} onKeyDown={(e)=>{if(e.key==='Enter')saveEdit();if(e.key==='Escape')setEditingCell(null);}} onBlur={saveEdit} className="w-full text-sm border border-blue-400 rounded-md px-2 py-1 outline-none"/>
+          : <div className="flex items-center gap-0.5 group/ec">{p.contactPhone2?<span className="text-sm text-gray-600 flex-1">{p.contactPhone2}</span>:<span className="text-gray-300 text-sm flex-1">—</span>}<PencilBtn id={p.id} field="contactPhone2" val={p.contactPhone2||''}/></div>
+        }
+      </td>;
+
+      case 'email':    return <td key={key} style={style} className={tdCls}>{textContent('email',p.email,p.id)}</td>;
+      case 'province': return <td key={key} style={style} className={tdCls}>{textContent('province',p.province,p.id)}</td>;
+      case 'rank':     return <td key={key} style={style} className={tdCls}><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${RANK_STYLE[p.rank]||''}`}>{RANK_LABEL[p.rank]||p.rank}</span></td>;
+      case 'group':    return <td key={key} style={style} className={tdCls}>{textContent('group',p.group,p.id)}</td>;
+      case 'source':   return <td key={key} style={style} className={tdCls}><span className="text-sm text-gray-500">{p.source||<span className="text-gray-300">—</span>}</span></td>;
+
+      case 'rating': return <td key={key} style={style} className={tdCls}>
+        {p.rating!=null&&p.rating>0
+          ? <div className="flex items-center gap-0.5">{[1,2,3,4,5].map((s)=><span key={s} className={`text-sm leading-none ${s<=p.rating!?'text-amber-400':'text-gray-200'}`}>★</span>)}</div>
+          : <span className="text-gray-300 text-sm">—</span>}
+      </td>;
+
+      case 'currency': return <td key={key} style={style} className={tdCls}>
+        <span className={`text-xs font-mono px-1.5 py-0.5 rounded font-semibold ${(p.currency||'VND')!=='VND'?'bg-violet-50 text-violet-600':'text-gray-400'}`}>{p.currency||'VND'}</span>
+      </td>;
+
+      // Số tiền: Number() để xử lý TypeORM decimal string, toLocaleString('vi-VN') cho dấu chấm
+      case 'totalDebt':    return <td key={key} style={style} className={tdCls}>{numContent('totalDebt',Number(p.totalDebt)||null,p.id,(v)=>fmtMoney(v),Number(p.totalDebt)>0?'text-red-600 font-semibold':'text-gray-400')}</td>;
+      case 'supplierDebt': return <td key={key} style={style} className={tdCls}>{numContent('supplierDebt',Number(p.supplierDebt??0)||null,p.id,(v)=>fmtMoney(v),Number(p.supplierDebt??0)>0?'text-orange-600 font-semibold':'text-gray-400')}</td>;
+      case 'creditLimit':  return <td key={key} style={style} className={tdCls}>{numContent('creditLimit',Number(p.creditLimit)||null,p.id,(v)=>fmtNum(v))}</td>;
+      case 'paymentTerm':  return <td key={key} style={style} className={tdCls}>{numContent('paymentTerm',Number(p.paymentTerm)||null,p.id,(v)=>`${v} ngày`)}</td>;
+      case 'totalOrders':  return <td key={key} style={style} className={tdCls}><span className="text-sm text-gray-700 font-medium">{Number(p.totalOrders)??0}</span></td>;
+      case 'totalRevenue': return <td key={key} style={style} className={tdCls}><span className={`text-sm font-semibold ${Number(p.totalRevenue)>0?'text-emerald-600':'text-gray-400'}`}>{Number(p.totalRevenue)>0?fmtNum(p.totalRevenue):'—'}</span></td>;
+      case 'totalPurchase': return <td key={key} style={style} className={tdCls}><span className={`text-sm font-semibold ${Number(p.totalPurchase??0)>0?'text-violet-600':'text-gray-400'}`}>{Number(p.totalPurchase??0)>0?fmtNum(p.totalPurchase??0):'—'}</span></td>;
+
+      case 'contactPerson':    return <td key={key} style={style} className={tdCls}>{textContent('contactPerson',p.contactPerson,p.id)}</td>;
+      case 'address':          return <td key={key} style={style} className={tdCls}>{textContent('address',p.address,p.id,'text-gray-600',true)}</td>;
+      case 'bankAccount':      return <td key={key} style={style} className={tdCls}>{textContent('bankAccount',p.bankAccount,p.id,'text-gray-500 font-mono')}</td>;
+      case 'bankName':         return <td key={key} style={style} className={tdCls}>{textContent('bankName',p.bankName,p.id)}</td>;
+      case 'bankAccountHolder':return <td key={key} style={style} className={tdCls}>{textContent('bankAccountHolder',p.bankAccountHolder,p.id)}</td>;
+      case 'bankBranch':       return <td key={key} style={style} className={tdCls}>{textContent('bankBranch',p.bankBranch,p.id,'text-gray-600',true)}</td>;
+
+      case 'assignedStaff': return <td key={key} style={style} className={tdCls}>
+        {p.assignedStaff
+          ? <div className="flex items-center gap-1.5"><span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 text-[9px] font-bold flex items-center justify-center flex-shrink-0">{p.assignedStaff.name.charAt(0)}</span><span className="text-sm text-gray-700 truncate">{p.assignedStaff.name}</span></div>
+          : <span className="text-gray-300 text-sm">—</span>}
+      </td>;
+
+      case 'notes':  return <td key={key} style={style} className={tdCls}>{textContent('notes',p.notes,p.id,'text-gray-500',true)}</td>;
+      case 'status': return <td key={key} style={style} className={tdCls}><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.isActive?'bg-emerald-50 text-emerald-600':'bg-gray-100 text-gray-400'}`}>{p.isActive?'Hoạt động':'Ngừng'}</span></td>;
+      default:       return <td key={key} style={style} className={tdCls}><span className="text-gray-300 text-sm">—</span></td>;
+    }
+  }
+
+  // ── KPI row — nhỏ gọn, đồng bộ style ────────────────────────────────
+  function renderKpi() {
+    let kpis: {label:string;value:string|number;color:string}[];
+    if (fixedTypeGroup==='supplier'){
+      kpis=[{label:'Tổng NCC',value:stats.suppliers,color:'text-violet-600'},{label:'Trong nước',value:stats.domesticSuppliers,color:'text-blue-600'},{label:'Nước ngoài',value:stats.foreignSuppliers,color:'text-orange-600'},{label:'Tổng nợ NCC',value:Number(stats.totalSupplierDebt)>0?fmtNum(Number(stats.totalSupplierDebt)):'0',color:'text-red-600'}];
+    } else if (fixedTypeGroup==='customer'){
+      kpis=[{label:'Tổng KH',value:stats.customers,color:'text-blue-600'},{label:'VIP',value:stats.vip,color:'text-amber-500'},{label:'Có công nợ',value:stats.customersWithDebt,color:'text-red-500'},{label:'Tổng nợ KH',value:Number(stats.totalCustomerDebt)>0?fmtNum(Number(stats.totalCustomerDebt)):'0',color:'text-red-600'}];
+    } else {
+      kpis=[{label:'Tổng đối tác',value:stats.total,color:'text-gray-800'},{label:'Khách hàng',value:stats.customers,color:'text-blue-600'},{label:'Nhà cung cấp',value:stats.suppliers,color:'text-violet-600'},{label:'Đơn vị VC',value:stats.freight,color:'text-orange-600'}];
+    }
+    return (
+      <div className="flex items-stretch gap-2 px-5 py-1.5 border-b border-gray-50 bg-white flex-shrink-0">
+        {kpis.map((k) => (
+          <div key={k.label} className="flex items-center gap-2.5 bg-gray-50/80 rounded-lg px-3 py-1.5 border border-gray-100 flex-1">
+            <div>
+              <p className="text-[10px] text-gray-400 leading-none mb-0.5">{k.label}</p>
+              <p className={`text-sm font-bold leading-none ${k.color}`}>{k.value}</p>
+            </div>
           </div>
+        ))}
+      </div>
+    );
+  }
 
-          {/* Pagination */}
-          <div className="flex items-center justify-between px-5 py-3 border-t border-gray-50">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 text-xs text-gray-400">
-                <span>Hiển thị</span>
-                <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
-                  {([20, 50, 100] as const).map((n) => (
-                    <button key={n} onClick={() => { setLimit(n); setPage(1); }}
-                      className={`px-2.5 py-1 text-xs font-medium transition border-r border-gray-200 last:border-r-0 ${limit === n ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
-                      {n}
-                    </button>
-                  ))}
-                </div>
-                <span>kết quả</span>
-              </div>
-              <span className="text-gray-200">·</span>
-              <span className="text-xs text-gray-400">
-                {total === 0 ? '0' : `${(page - 1) * limit + 1}–${Math.min(page * limit, total)}`}
-                {' '}trên tổng <span className="font-semibold text-gray-600">{total}</span> đối tác
+  // ── Sort icon in header ─────────────────────────────────────────────
+  const SORTABLE:Record<string,string> = { name:'name',totalDebt:'totalDebt',supplierDebt:'supplierDebt',creditLimit:'creditLimit',totalOrders:'totalOrders',totalRevenue:'totalRevenue',totalPurchase:'totalPurchase',rank:'rank' };
+  const thBase = 'text-left px-4 py-1.5 text-[11px] font-bold text-gray-600 uppercase tracking-wider border-b border-gray-200 whitespace-nowrap bg-white select-none relative group/th';
+
+  function renderTh(key:string) {
+    const label = ALL_COLS.find((c)=>c.key===key)?.label??key;
+    const field = SORTABLE[key];
+    const w = colWidths[key]??DEFAULT_COL_WIDTHS[key]??120;
+    const isSticky = key in stickyLeft;
+    const active = sortBy===field;
+    const thStyle:React.CSSProperties = {
+      width:w, minWidth:w,
+      ...(isSticky?{position:'sticky',left:stickyLeft[key],zIndex:25,boxShadow:'2px 0 4px -2px rgba(0,0,0,0.08)'}:{}),
+    };
+    return (
+      <th key={key} style={thStyle} className={thBase}>
+        {field
+          ? <div className="flex items-center gap-1 cursor-pointer" onClick={()=>handleSort(field)}>
+              {label}
+              <span className="flex flex-col leading-none">
+                <svg className={`w-2 h-2 -mb-0.5 ${active&&sortOrder==='ASC'?'text-blue-500 opacity-100':'text-gray-500 opacity-60'}`} viewBox="0 0 10 6" fill="currentColor"><path d="M5 0L10 6H0L5 0z"/></svg>
+                <svg className={`w-2 h-2 ${active&&sortOrder==='DESC'?'text-blue-500 opacity-100':'text-gray-500 opacity-60'}`} viewBox="0 0 10 6" fill="currentColor"><path d="M5 6L0 0H10L5 6z"/></svg>
               </span>
             </div>
-            {totalPages > 1 && (
-              <div className="flex items-center gap-1">
-                <button onClick={() => setPage(1)} disabled={page === 1}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition text-xs font-medium">«</button>
-                <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition text-xs">‹</button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
-                  .reduce<(number | 'ellipsis')[]>((acc, p, idx, arr) => {
-                    if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('ellipsis');
-                    acc.push(p);
-                    return acc;
-                  }, [])
-                  .map((item, idx) =>
-                    item === 'ellipsis'
-                      ? <span key={`e${idx}`} className="w-7 h-7 flex items-center justify-center text-gray-300 text-xs">…</span>
-                      : <button key={item} onClick={() => setPage(item as number)}
-                          className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-medium transition ${page === item ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-100'}`}>{item}</button>
+          : label}
+        {key in stickyLeft && <span className="ml-1 text-blue-300 text-[9px]">📌</span>}
+        {/* Resize handle */}
+        <div onMouseDown={(e)=>{ e.preventDefault(); e.stopPropagation(); onResizeMouseDown(e,key); }}
+          style={{position:'absolute',right:0,top:0,bottom:0,width:5,cursor:'col-resize',zIndex:10}}
+          className="group/rh flex items-center justify-center hover:bg-blue-300/30 transition-colors"
+          onClick={(e)=>e.stopPropagation()}>
+          <div className="w-px h-3 bg-gray-300 opacity-0 group-hover/rh:opacity-100 transition-opacity"/>
+        </div>
+      </th>
+    );
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────
+  return (
+    <div className="flex flex-col h-full bg-[#f5f6fa]">
+      {/* ── Header ── */}
+      <div className="bg-white border-b border-gray-100 px-5 py-2.5 flex items-center justify-between flex-shrink-0">
+        <div><h1 className="text-base font-bold text-gray-900">{cfg.title}</h1><p className="text-xs text-gray-400">{cfg.subtitle}</p></div>
+        <div className="flex items-center gap-2">
+          <button onClick={()=>exportCSV()} className="flex items-center gap-1.5 px-3.5 py-1.5 border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>Xuất CSV
+          </button>
+          <button onClick={()=>router.push(`/dashboard/partners/new${fixedTypeGroup?`?type=${fixedTypeGroup}`:''}`)} className="flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>{cfg.btnLabel}
+          </button>
+        </div>
+      </div>
+
+      {/* ── KPI ── */}
+      {renderKpi()}
+
+      {/* ── Bulk bar ── */}
+      {selectedIds.size>0 && (
+        <div className="bg-blue-50 border-b border-blue-100 px-5 py-2 flex items-center gap-3 flex-shrink-0">
+          <span className="text-sm font-semibold text-blue-700">Đã chọn {selectedIds.size}</span>
+          <div className="relative" ref={bulkRef}>
+            <button onClick={()=>setShowBulkMenu((o)=>!o)} className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition">
+              Thao tác <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            {showBulkMenu && (
+              <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-gray-100 rounded-xl shadow-xl w-44 py-1.5">
+                <button onClick={()=>exportCSV(selectedIds)} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Xuất CSV đã chọn</button>
+                <div className="relative">
+                  <button onClick={()=>setShowRankPick((o)=>!o)} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Đổi hạng...</button>
+                  {showRankPick && (
+                    <div className="absolute left-full top-0 ml-1 bg-white border border-gray-100 rounded-xl shadow-xl w-36 py-1.5">
+                      {Object.entries(RANK_LABEL).map(([v,l])=><button key={v} onClick={()=>handleBulkRank(v)} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">{l}</button>)}
+                    </div>
                   )}
-                <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition text-xs">›</button>
-                <button onClick={() => setPage(totalPages)} disabled={page === totalPages}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition text-xs font-medium">»</button>
+                </div>
+                <div className="h-px bg-gray-100 my-1"/>
+                <button onClick={handleBulkDelete} className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50">Xóa {selectedIds.size} đã chọn</button>
               </div>
             )}
           </div>
-        </div>}
+          <button onClick={exitSelectionMode} className="text-xs text-blue-400 hover:text-blue-600 ml-auto">Bỏ chọn tất cả</button>
+        </div>
+      )}
+
+      {/* ── Toolbar ── */}
+      <div className="bg-white border-b border-gray-50 px-5 py-2 flex items-center gap-3 flex-wrap flex-shrink-0">
+        {/* Selection mode toggle */}
+        <button onClick={()=>{ selectionMode ? exitSelectionMode() : setSelectionMode(true); }} title={selectionMode ? 'Thoát chọn' : 'Chọn nhiều'}
+          className={`w-7 h-7 flex items-center justify-center rounded-lg border transition flex-shrink-0 ${selectionMode ? 'border-blue-400 bg-blue-50 text-blue-600' : 'border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-600'}`}>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <rect x="3" y="3" width="7" height="7" rx="1" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/>
+            <rect x="14" y="3" width="7" height="7" rx="1" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/>
+            <rect x="3" y="14" width="7" height="7" rx="1" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M14 17.5h7M17.5 14v7"/>
+          </svg>
+        </button>
+
+        {/* Gear icon */}
+        <button onClick={()=>setShowColModal(true)} title="Điều chỉnh & sắp xếp cột"
+          className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition flex-shrink-0">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+        </button>
+
+        <div className="relative">
+          <svg className="w-3.5 h-3.5 text-gray-300 absolute left-2.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <input type="text" value={search} onChange={(e)=>{setPage(1);setSearch(e.target.value);}} placeholder="Tên, mã, SĐT, email..."
+            className="pl-8 pr-4 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-52 bg-gray-50/80 placeholder:text-gray-300"/>
+        </div>
+
+        {!fixedTypeGroup && (
+          <select value={filterType} onChange={(e)=>{setPage(1);setFilterType(e.target.value);}} className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-500 bg-gray-50/80 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">Tất cả loại</option><option value="customer">Khách hàng</option><option value="supplier">Nhà cung cấp</option><option value="both">KH + NCC</option><option value="freight">Đơn vị VC</option>
+          </select>
+        )}
+
+        <select value={filterRank} onChange={(e)=>{setPage(1);setFilterRank(e.target.value);}} className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-500 bg-gray-50/80 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">Tất cả hạng</option><option value="new">Mới</option><option value="normal">Thường</option><option value="loyal">Thân thiết</option><option value="vip">VIP</option>
+        </select>
+
+        <ProvinceSelect value={filterProvince} onChange={(v)=>{setPage(1);setFilterProvince(v);}} provinces={provinces}/>
+
+        {groups.length>0 && (
+          <select value={filterGroup} onChange={(e)=>{setPage(1);setFilterGroup(e.target.value);}} className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-500 bg-gray-50/80 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">Tất cả nhóm</option>{groups.map((g)=><option key={g} value={g}>{g}</option>)}
+          </select>
+        )}
+
+        {(search||filterType||filterRank||filterProvince.length>0||filterGroup) && (
+          <button onClick={()=>{setSearch('');setFilterType('');setFilterRank('');setFilterProvince([]);setFilterGroup('');setPage(1);}} className="text-xs text-gray-300 hover:text-red-400 transition flex items-center gap-1">
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>Xóa lọc
+          </button>
+        )}
+
+        <div className="flex items-center gap-2 ml-auto">
+          {highlightId && <button onClick={()=>setHighlightId(null)} className="text-xs text-amber-500 hover:text-amber-700 border border-amber-200 px-2 py-1 rounded-lg transition">Bỏ highlight</button>}
+          <span className="text-xs text-gray-300">{total.toLocaleString('vi-VN')} kết quả</span>
+        </div>
       </div>
+
+      {/* ── Table — flex-1 overflow-auto min-h-0: scrollbar luôn ở dưới vùng hiển thị ── */}
+      <div ref={tableScrollRef} className="flex-1 overflow-auto min-h-0" style={{isolation:'isolate'}}>
+        <table className="min-w-full text-sm" style={{borderCollapse:'separate',borderSpacing:0}}>
+          <thead className="sticky top-0 z-20">
+            <tr className="bg-white">
+              {showCheckboxes && <th className="w-10 pl-4 py-1.5 border-b border-gray-200" style={{position:'sticky',left:0,zIndex:30,backgroundColor:'white'}}>
+                <input type="checkbox" checked={partners.length>0&&selectedIds.size===partners.length}
+                  ref={(el)=>{ if(el) el.indeterminate=selectedIds.size>0&&selectedIds.size<partners.length; }}
+                  onChange={toggleSelectAll} className="w-4 h-4 rounded border-gray-300 accent-blue-600 cursor-pointer"/>
+              </th>}
+              {visibleCols.map((col)=>renderTh(col.key))}
+            </tr>
+          </thead>
+          <tbody>
+            {loading
+              ? <tr><td colSpan={visibleCols.length+1} className="text-center py-14"><div className="inline-flex flex-col items-center gap-2 text-gray-300"><svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg><span className="text-xs">Đang tải...</span></div></td></tr>
+              : partners.length===0
+                ? <tr><td colSpan={visibleCols.length+1} className="text-center py-14 text-gray-300 text-sm">Không có dữ liệu</td></tr>
+                : partners.map((p) => {
+                    const isSel  = selectedIds.has(p.id);
+                    const isHov  = hoveredId===p.id;
+                    const isHigh = highlightId===p.id;
+                    const rowBg  = isSel?'#dbeafe':isHigh?'#fefce8':isHov?'#eff6ff':'#ffffff';
+                    return (
+                      <tr key={p.id}
+                        className="border-b border-gray-50 cursor-pointer transition-colors"
+                        onMouseEnter={()=>setHoveredId(p.id)}
+                        onMouseLeave={()=>setHoveredId(null)}
+                        onClick={()=>router.push(`/dashboard/partners/${p.id}`)}
+                        onContextMenu={(e)=>{ e.preventDefault(); setHighlightId(highlightId===p.id?null:p.id); }}>
+                        {showCheckboxes && <td className="w-10 pl-4 py-1.5 border-b border-gray-50"
+                          style={{position:'sticky',left:0,zIndex:9,backgroundColor:rowBg}}
+                          onClick={(e)=>{ e.stopPropagation(); toggleSelect(p.id); }}>
+                          <input type="checkbox" checked={isSel} onChange={()=>toggleSelect(p.id)} className="w-4 h-4 rounded border-gray-300 accent-blue-600 cursor-pointer"/>
+                        </td>}
+                        {visibleCols.map((col) => {
+                          const cell = renderCell(col.key, p);
+                          const cellEl = cell as React.ReactElement<React.HTMLAttributes<HTMLElement>>;
+                          const orig = cellEl.props.style||{};
+                          const rowBorder = { borderBottom:'1px solid rgb(249 250 251)' };
+                          if (col.key in stickyLeft) {
+                            const w = colWidths[col.key]??DEFAULT_COL_WIDTHS[col.key]??120;
+                            return React.cloneElement(cellEl, { style:{...orig,position:'sticky',left:stickyLeft[col.key],zIndex:9,backgroundColor:rowBg,boxShadow:'2px 0 4px -2px rgba(0,0,0,0.06)',minWidth:w,width:w,...rowBorder} });
+                          }
+                          return React.cloneElement(cellEl, { style:{...orig,...rowBorder,backgroundColor:rowBg} });
+                        })}
+                      </tr>
+                    );
+                  })
+            }
+          </tbody>
+        </table>
+      </div>
+
+      {/* ── Pagination ── */}
+      <div className="flex items-center justify-between px-5 py-3 border-t border-gray-50 bg-white flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-xs text-gray-400">
+            <span>Hiển thị</span>
+            <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+              {([20,50,100] as const).map((n)=>(
+                <button key={n} onClick={()=>{ setLimit(n); setPage(1); }}
+                  className={`px-2.5 py-1 text-xs font-medium transition border-r border-gray-200 last:border-r-0 ${limit===n?'bg-blue-600 text-white':'text-gray-500 hover:bg-gray-50'}`}>{n}</button>
+              ))}
+            </div>
+            <span>kết quả</span>
+          </div>
+          <span className="text-gray-200">·</span>
+          <span className="text-xs text-gray-400">
+            {total===0 ? '0' : `${(page-1)*limit+1}–${Math.min(page*limit,total)}`} trên <span className="font-semibold text-gray-600">{total}</span> đối tác
+          </span>
+        </div>
+        {totalPages>1 && (
+          <div className="flex items-center gap-1">
+            <button onClick={()=>setPage(1)} disabled={page===1} className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 disabled:opacity-30 text-xs">«</button>
+            <button onClick={()=>setPage((p)=>Math.max(1,p-1))} disabled={page===1} className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 disabled:opacity-30 text-xs">‹</button>
+            {Array.from({length:totalPages},(_,i)=>i+1)
+              .filter((p)=>p===1||p===totalPages||Math.abs(p-page)<=1)
+              .reduce<(number|'e')[]>((acc,p,idx,arr)=>{ if (idx>0&&typeof arr[idx-1]==='number'&&(p as number)-(arr[idx-1] as number)>1) acc.push('e'); acc.push(p); return acc; },[])
+              .map((p,i)=>p==='e'
+                ? <span key={`e${i}`} className="w-7 h-7 flex items-center justify-center text-gray-300 text-xs">…</span>
+                : <button key={p} onClick={()=>setPage(p as number)} className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-medium transition ${page===p?'bg-blue-600 text-white':'text-gray-500 hover:bg-gray-100'}`}>{p}</button>
+              )}
+            <button onClick={()=>setPage((p)=>Math.min(totalPages,p+1))} disabled={page===totalPages} className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 disabled:opacity-30 text-xs">›</button>
+            <button onClick={()=>setPage(totalPages)} disabled={page===totalPages} className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 disabled:opacity-30 text-xs">»</button>
+          </div>
+        )}
+      </div>
+
+      {/* ── Column settings modal (centered) ── */}
+      {showColModal && <ColSettingsModal colOrder={colOrder} onSave={handleSaveCols} onClose={()=>setShowColModal(false)} defaultOrder={defaultColOrder(ctx)}/>}
+
+      {/* ── Expanded cell modal ── */}
+      {expandedCell && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={()=>setExpandedCell(null)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-5" onClick={(e)=>e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-800">{expandedCell.label}</h3>
+              <button onClick={()=>setExpandedCell(null)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg></button>
+            </div>
+            <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{expandedCell.text}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

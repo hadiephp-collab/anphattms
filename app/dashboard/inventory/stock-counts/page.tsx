@@ -68,6 +68,8 @@ export default function StockCountsPage() {
 
   /* ── bulk select ── */
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [selectionMode, setSelectionMode] = useState(false);
+  const showCheckboxes = selectionMode || selectedIds.size > 0;
 
   /* ── column visibility ── */
   const [visibleCols, setVisibleCols] = useState<Record<ColKey, boolean>>(() => {
@@ -145,7 +147,9 @@ export default function StockCountsPage() {
   }
 
   /* ── bulk select ── */
+  function exitSelectionMode(){ setSelectionMode(false); setSelectedIds(new Set()); }
   function toggleSelect(id: number) {
+    setSelectionMode(true);
     setSelectedIds(prev => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
@@ -153,6 +157,7 @@ export default function StockCountsPage() {
     });
   }
   function toggleSelectAll() {
+    setSelectionMode(true);
     if (selectedIds.size === rows.length) setSelectedIds(new Set());
     else setSelectedIds(new Set(rows.map(r => r.id)));
   }
@@ -325,7 +330,7 @@ export default function StockCountsPage() {
     <div className="flex flex-col h-full bg-[#f5f6fa]">
 
       {/* ── Header ── */}
-      <div className="bg-white border-b border-gray-100 px-7 py-4 flex items-center justify-between flex-shrink-0">
+      <div className="bg-white border-b border-gray-100 px-6 py-2.5 flex items-center justify-between flex-shrink-0">
         <div>
           <h1 className="text-base font-bold text-gray-900 tracking-tight">Kiểm hàng</h1>
           <p className="text-gray-400 text-xs mt-0.5">Quản lý phiếu kiểm kho và cân bằng tồn kho</p>
@@ -410,6 +415,17 @@ export default function StockCountsPage() {
               </div>
             )}
           </div>
+
+          <button onClick={() => selectionMode ? exitSelectionMode() : setSelectionMode(true)}
+            title={selectionMode ? 'Thoát chọn' : 'Chọn nhiều'}
+            className={`w-7 h-7 flex items-center justify-center rounded-lg border transition flex-shrink-0 ${selectionMode ? 'border-blue-400 bg-blue-50 text-blue-600' : 'border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-600'}`}>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <rect x="3" y="3" width="7" height="7" rx="1" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/>
+              <rect x="14" y="3" width="7" height="7" rx="1" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/>
+              <rect x="3" y="14" width="7" height="7" rx="1" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M14 17.5h7M17.5 14v7"/>
+            </svg>
+          </button>
 
           {/* Search */}
           <div className="flex items-center gap-2 flex-1 min-w-[180px] bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
@@ -529,7 +545,7 @@ export default function StockCountsPage() {
               </svg>
               Xóa đã chọn
             </button>
-            <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-xs text-blue-500 hover:text-blue-700">Bỏ chọn</button>
+            <button onClick={exitSelectionMode} className="ml-auto text-xs text-blue-500 hover:text-blue-700">Bỏ chọn</button>
           </div>
         )}
 
@@ -557,12 +573,12 @@ export default function StockCountsPage() {
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100">
                       {/* Checkbox all */}
-                      <th className="px-4 py-3 w-10">
+                      {showCheckboxes && <th className="px-4 py-3 w-10">
                         <input type="checkbox"
                           checked={rows.length > 0 && selectedIds.size === rows.length}
                           onChange={toggleSelectAll}
                           className="w-4 h-4 rounded accent-blue-600 cursor-pointer" />
-                      </th>
+                      </th>}
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Mã phiếu</th>
                       {visibleCols['Trạng thái'] && <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Trạng thái</th>}
                       {visibleCols['Tổng SP']    && <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Tổng SP</th>}
@@ -583,10 +599,10 @@ export default function StockCountsPage() {
                       const isSelected = selectedIds.has(sc.id);
                       return (
                         <tr key={sc.id} className={`hover:bg-gray-50/50 transition ${isSelected ? 'bg-blue-50/40' : ''}`}>
-                          <td className="px-4 py-3">
+                          {showCheckboxes && <td className="px-4 py-3">
                             <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(sc.id)}
                               className="w-4 h-4 rounded accent-blue-600 cursor-pointer" />
-                          </td>
+                          </td>}
                           <td className="px-4 py-3">
                             <Link href={`/dashboard/inventory/stock-counts/${sc.id}`}
                               className="font-semibold text-blue-600 hover:text-blue-800 hover:underline font-mono text-xs">

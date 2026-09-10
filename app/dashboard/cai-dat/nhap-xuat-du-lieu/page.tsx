@@ -249,7 +249,7 @@ export default function NhapXuatDuLieuPage() {
 
       {/* IMPORT TAB */}
       {tab === 'import' && (
-        <div className="space-y-5">
+        <div className="space-y-3">
           {/* Type selector */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
             <h2 className="font-semibold text-gray-900 text-sm mb-3">Chọn loại dữ liệu</h2>
@@ -331,8 +331,8 @@ export default function NhapXuatDuLieuPage() {
             <div className={`rounded-2xl border p-5 ${result.errors.length === 0 ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
               <h2 className="font-semibold text-gray-900 text-sm mb-3">Kết quả nhập</h2>
               <div className="flex gap-6 mb-3">
-                <div><span className="text-2xl font-bold text-gray-900">{result.total}</span><div className="text-xs text-gray-500">Tổng dòng</div></div>
-                <div><span className="text-2xl font-bold text-green-600">{result.created}</span><div className="text-xs text-gray-500">Tạo mới</div></div>
+                <div><span className="text-base font-bold text-gray-900">{result.total}</span><div className="text-xs text-gray-500">Tổng dòng</div></div>
+                <div><span className="text-base font-bold text-green-600">{result.created}</span><div className="text-xs text-gray-500">Tạo mới</div></div>
                 <div><span className="text-2xl font-bold text-blue-600">{result.updated}</span><div className="text-xs text-gray-500">Cập nhật</div></div>
                 <div><span className="text-2xl font-bold text-red-600">{result.errors.length}</span><div className="text-xs text-gray-500">Lỗi</div></div>
               </div>

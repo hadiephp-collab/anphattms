@@ -38,6 +38,8 @@ export const purchaseOrdersApi = {
   bulkUpdateStatus: (ids: number[], status: string) =>
     authFetch('/purchase-orders/bulk-update-status', { method: 'POST', body: JSON.stringify({ ids, status }) }),
 
+  getByProduct: (productId: number) => authFetch(`/purchase-orders/by-product/${productId}`),
+
   getCosts:    (id: number) => authFetch(`/purchase-orders/${id}/costs`),
   addCost:     (id: number, data: object) =>
     authFetch(`/purchase-orders/${id}/costs`, { method: 'POST', body: JSON.stringify(data) }),

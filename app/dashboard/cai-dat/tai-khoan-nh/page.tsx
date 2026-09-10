@@ -401,19 +401,19 @@ export default function TaiKhoanNHPage() {
           <div className="flex gap-8 items-center">
             <div className="text-right">
               <p className="text-xs text-blue-200 uppercase tracking-wide mb-1">Tiền mặt</p>
-              <p className="text-xl font-bold text-green-300">{fmt(stats.totalTienMat)}đ</p>
+              <p className="text-sm font-bold text-green-300">{fmt(stats.totalTienMat)}đ</p>
               <p className="text-xs text-blue-300">{tienMat.length} quỹ</p>
             </div>
             <div className="w-px h-10 bg-white/20" />
             <div className="text-right">
               <p className="text-xs text-blue-200 uppercase tracking-wide mb-1">Ngân hàng</p>
-              <p className="text-xl font-bold text-blue-200">{fmt(stats.totalNganHang)}đ</p>
+              <p className="text-sm font-bold text-blue-200">{fmt(stats.totalNganHang)}đ</p>
               <p className="text-xs text-blue-300">{nganHang.length} tài khoản</p>
             </div>
             <div className="w-px h-10 bg-white/20" />
             <div className="text-right">
               <p className="text-xs text-blue-200 uppercase tracking-wide mb-1">Đang hoạt động</p>
-              <p className="text-xl font-bold">{stats.active}</p>
+              <p className="text-sm font-bold">{stats.active}</p>
             </div>
           </div>
         </div>

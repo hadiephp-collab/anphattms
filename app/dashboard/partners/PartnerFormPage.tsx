@@ -23,16 +23,16 @@ interface Props {
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-      <h3 className="text-sm font-bold text-gray-700 mb-4 pb-3 border-b border-gray-50">{title}</h3>
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 pb-2 border-b border-gray-100">{title}</h3>
       {children}
     </div>
   );
 }
 
-const labelCls = 'text-xs font-semibold text-gray-500 mb-1.5 block';
-const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white';
-const inputErrCls = 'w-full border border-red-300 rounded-lg px-3 py-2.5 text-sm text-gray-800 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-red-400 bg-white';
+const labelCls = 'text-[11px] font-semibold text-gray-400 mb-1 block uppercase tracking-wide';
+const inputCls = 'w-full border border-gray-200 rounded-md px-2.5 py-1.5 text-sm text-gray-800 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white';
+const inputErrCls = 'w-full border border-red-300 rounded-md px-2.5 py-1.5 text-sm text-gray-800 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-red-400 bg-white';
 const selectCls = inputCls + ' cursor-pointer';
 
 function filterPhone(v: string) { return v.replace(/[^0-9+\-\s]/g, ''); }
@@ -81,6 +81,13 @@ export default function PartnerFormPage({ partner, isEdit = false }: Props) {
   const [paymentTerm, setPaymentTerm] = useState('');
   const [bankAccount, setBankAccount] = useState('');
   const [bankName, setBankName] = useState('');
+  const [bankAccountHolder, setBankAccountHolder] = useState('');
+  const [bankBranch, setBankBranch] = useState('');
+  const [contactPhone2, setContactPhone2] = useState('');
+  const [taxAddress, setTaxAddress] = useState('');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [rating, setRating] = useState(0);
+  const [currency, setCurrency] = useState('VND');
   const [notes, setNotes] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [nhomGia, setNhomGia] = useState('');
@@ -88,7 +95,10 @@ export default function PartnerFormPage({ partner, isEdit = false }: Props) {
 
   useEffect(() => {
     employeesApi.getAll({ limit: '200' })
-      .then((res: any) => setEmployees(res.data || res || []))
+      .then((res: any) => {
+        const list = res?.data ?? res;
+        setEmployees(Array.isArray(list) ? list : []);
+      })
       .catch(() => {});
   }, []);
 
@@ -119,6 +129,13 @@ export default function PartnerFormPage({ partner, isEdit = false }: Props) {
       setPaymentTerm(partner.paymentTerm ? String(partner.paymentTerm) : '');
       setBankAccount((partner.bankAccount as string) || '');
       setBankName((partner.bankName as string) || '');
+      setBankAccountHolder((partner.bankAccountHolder as string) || '');
+      setBankBranch((partner.bankBranch as string) || '');
+      setContactPhone2((partner.contactPhone2 as string) || '');
+      setTaxAddress((partner.taxAddress as string) || '');
+      setDeliveryAddress((partner.deliveryAddress as string) || '');
+      setRating((partner.rating as number) || 0);
+      setCurrency((partner.currency as string) || 'VND');
       setNotes((partner.notes as string) || '');
       setIsActive(partner.isActive !== false);
       setNhomGia((partner.nhomGia as string) || '');
@@ -164,6 +181,13 @@ export default function PartnerFormPage({ partner, isEdit = false }: Props) {
         paymentTerm: paymentTerm ? Number(paymentTerm) : undefined,
         bankAccount: bankAccount || undefined,
         bankName: bankName || undefined,
+        bankAccountHolder: bankAccountHolder || undefined,
+        bankBranch: bankBranch || undefined,
+        contactPhone2: contactPhone2 || undefined,
+        taxAddress: taxAddress || undefined,
+        deliveryAddress: deliveryAddress || undefined,
+        rating: rating > 0 ? rating : undefined,
+        currency: currency || undefined,
         notes:       notes || undefined,
         nhomGia:     nhomGia || undefined,
         priceListId: priceListId ? Number(priceListId) : undefined,
@@ -229,15 +253,15 @@ export default function PartnerFormPage({ partner, isEdit = false }: Props) {
       </div>
 
       {/* Body */}
-      <div className="flex-1 overflow-auto p-6">
-        <form className="max-w-5xl mx-auto grid grid-cols-3 gap-5 items-start" onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+      <div className="flex-1 overflow-auto px-3 py-3">
+        <form className="grid grid-cols-3 gap-3 items-start" onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
 
           {/* LEFT col-span-2 */}
-          <div className="col-span-2 space-y-5">
+          <div className="col-span-2 space-y-3">
 
             {/* Thông tin cơ bản */}
             <Card title="Thông tin cơ bản">
-              <div className="space-y-4">
+              <div className="space-y-2">
                 <div className="grid grid-cols-3 gap-4">
                   <div className="col-span-2">
                     <label className={labelCls}>Tên đối tác <span className="text-red-400">*</span></label>
@@ -272,36 +296,6 @@ export default function PartnerFormPage({ partner, isEdit = false }: Props) {
                     </select>
                   </div>
                 </div>
-
-                {/* supplierType — hiện khi là NCC / both / freight */}
-                {isSupplierLike && (
-                  <div>
-                    <label className={labelCls}>Phân loại đối tác</label>
-                    <div className="flex items-center gap-3">
-                      {[
-                        { value: 'domestic', label: 'Trong nước' },
-                        { value: 'foreign',  label: 'Nước ngoài' },
-                      ].map((opt) => (
-                        <label key={opt.value}
-                          className={`flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer transition text-sm font-medium select-none ${
-                            supplierType === opt.value
-                              ? 'border-blue-400 bg-blue-50 text-blue-700'
-                              : 'border-gray-200 text-gray-500 hover:border-gray-300 bg-white'
-                          }`}>
-                          <input type="radio" name="supplierType" value={opt.value}
-                            checked={supplierType === opt.value}
-                            onChange={() => setSupplierType(opt.value)}
-                            className="hidden" />
-                          {opt.label}
-                        </label>
-                      ))}
-                      {supplierType && (
-                        <button type="button" onClick={() => setSupplierType('')}
-                          className="text-xs text-gray-300 hover:text-gray-500 transition">Bỏ chọn</button>
-                      )}
-                    </div>
-                  </div>
-                )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -338,21 +332,20 @@ export default function PartnerFormPage({ partner, isEdit = false }: Props) {
                       <option value="other">Khác</option>
                     </select>
                   </div>
-                  <div />
-                </div>
-
-                <div>
-                  <label className={labelCls}>Nhóm đối tác</label>
-                  <input type="text" value={group} onChange={(e) => setGroup(e.target.value)}
-                    placeholder="VD: Khách sỉ, Đại lý cấp 1, VIP Hà Nội..." className={inputCls} />
+                  <div>
+                    <label className={labelCls}>Nhóm đối tác</label>
+                    <input type="text" value={group} onChange={(e) => setGroup(e.target.value)}
+                      placeholder="VD: Khách sỉ, Đại lý cấp 1..." className={inputCls} />
+                  </div>
                 </div>
               </div>
             </Card>
 
             {/* Liên hệ */}
             <Card title="Liên hệ">
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                {/* Hàng 1: SĐT | SĐT 2 | Email */}
+                <div className="grid grid-cols-3 gap-2">
                   <div>
                     <label className={labelCls}>Điện thoại</label>
                     <input type="tel" value={phone}
@@ -362,6 +355,12 @@ export default function PartnerFormPage({ partner, isEdit = false }: Props) {
                     {fieldErrors.phone && <p className="text-xs text-red-400 mt-1">{fieldErrors.phone}</p>}
                   </div>
                   <div>
+                    <label className={labelCls}>Điện thoại 2</label>
+                    <input type="tel" value={contactPhone2}
+                      onChange={(e) => setContactPhone2(filterPhone(e.target.value))}
+                      placeholder="Dự phòng" className={inputCls} inputMode="tel" />
+                  </div>
+                  <div>
                     <label className={labelCls}>Email</label>
                     <input type="email" value={email}
                       onChange={(e) => { setEmail(e.target.value); setFieldErrors((p) => ({ ...p, email: '' })); }}
@@ -369,10 +368,12 @@ export default function PartnerFormPage({ partner, isEdit = false }: Props) {
                     {fieldErrors.email && <p className="text-xs text-red-400 mt-1">{fieldErrors.email}</p>}
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+
+                {/* Hàng 2: Người LH | Tỉnh/TP | MST hoặc Ngày sinh */}
+                <div className="grid grid-cols-3 gap-2">
                   <div>
                     <label className={labelCls}>Người liên hệ</label>
-                    <input type="text" value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} placeholder="Họ và tên người liên hệ" className={inputCls} />
+                    <input type="text" value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} placeholder="Họ và tên" className={inputCls} />
                   </div>
                   <div>
                     <label className={labelCls}>Tỉnh / Thành phố</label>
@@ -381,17 +382,25 @@ export default function PartnerFormPage({ partner, isEdit = false }: Props) {
                       {PROVINCES.map((p) => <option key={p} value={p}>{p}</option>)}
                     </select>
                   </div>
-                </div>
-                <div>
-                  <label className={labelCls}>Địa chỉ</label>
-                  <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Số nhà, đường, phường/xã, quận/huyện..." className={inputCls} />
-                </div>
-                {customerType === 'individual' && (
-                  <div className="grid grid-cols-2 gap-4">
+                  {customerType === 'business' ? (
+                    <div>
+                      <label className={labelCls}>Mã số thuế</label>
+                      <input type="text" value={taxCode}
+                        onChange={(e) => setTaxCode(filterDigits(e.target.value))}
+                        placeholder="0123456789" className={inputCls}
+                        inputMode="numeric" maxLength={13} />
+                    </div>
+                  ) : customerType === 'individual' ? (
                     <div>
                       <label className={labelCls}>Ngày sinh</label>
                       <input type="date" value={birthday} onChange={(e) => setBirthday(e.target.value)} className={inputCls} />
                     </div>
+                  ) : <div />}
+                </div>
+
+                {/* Giới tính — chỉ khi cá nhân */}
+                {customerType === 'individual' && (
+                  <div className="grid grid-cols-3 gap-2">
                     <div>
                       <label className={labelCls}>Giới tính</label>
                       <select value={gender} onChange={(e) => setGender(e.target.value)} className={selectCls}>
@@ -403,31 +412,35 @@ export default function PartnerFormPage({ partner, isEdit = false }: Props) {
                     </div>
                   </div>
                 )}
-                {customerType === 'business' && (
+
+                {/* Địa chỉ */}
+                <div>
+                  <label className={labelCls}>Địa chỉ</label>
+                  <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Số nhà, đường, phường/xã, quận/huyện..." className={inputCls} />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className={labelCls}>Mã số thuế</label>
-                    <input type="text" value={taxCode}
-                      onChange={(e) => setTaxCode(filterDigits(e.target.value))}
-                      placeholder="VD: 0123456789" className={inputCls}
-                      inputMode="numeric" maxLength={13} />
-                    <p className="text-[11px] text-gray-300 mt-1">Chỉ nhập chữ số (10–13 ký tự)</p>
+                    <label className={labelCls}>Địa chỉ giao hàng / kho</label>
+                    <input type="text" value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} placeholder="Nếu khác địa chỉ trên" className={inputCls} />
                   </div>
-                )}
+                  <div>
+                    <label className={labelCls}>Địa chỉ trên hóa đơn VAT</label>
+                    <input type="text" value={taxAddress} onChange={(e) => setTaxAddress(e.target.value)} placeholder="Địa chỉ đăng ký kinh doanh" className={inputCls} />
+                  </div>
+                </div>
               </div>
             </Card>
 
             {/* Mạng xã hội */}
             <Card title="Mạng xã hội">
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className={labelCls}>Website</label>
-                    <input type="url" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://..." className={inputCls} />
-                  </div>
-                  <div>
-                    <label className={labelCls}>Zalo</label>
-                    <input type="text" value={zalo} onChange={(e) => setZalo(e.target.value)} placeholder="Số Zalo hoặc link" className={inputCls} />
-                  </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className={labelCls}>Website</label>
+                  <input type="url" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://..." className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>Zalo</label>
+                  <input type="text" value={zalo} onChange={(e) => setZalo(e.target.value)} placeholder="Số Zalo hoặc link" className={inputCls} />
                 </div>
                 <div>
                   <label className={labelCls}>Facebook</label>
@@ -438,7 +451,7 @@ export default function PartnerFormPage({ partner, isEdit = false }: Props) {
           </div>
 
           {/* RIGHT col-span-1 */}
-          <div className="col-span-1 space-y-5">
+          <div className="col-span-1 space-y-3">
 
             {/* Nhân viên phụ trách */}
             <Card title="Nhân viên phụ trách">
@@ -479,41 +492,73 @@ export default function PartnerFormPage({ partner, isEdit = false }: Props) {
 
             {/* Tài chính */}
             <Card title="Tài chính">
-              <div className="space-y-4">
-                {isCustomerLike && (
+              <div className="space-y-2">
+                {/* Hạn mức + Thời hạn TT */}
+                <div className={`grid gap-3 ${isCustomerLike ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                  {isCustomerLike && (
+                    <div>
+                      <label className={labelCls}>Hạn mức công nợ (đ)</label>
+                      <input type="number" min="0" value={creditLimit}
+                        onChange={(e) => setCreditLimit(e.target.value)}
+                        placeholder="0" className={inputCls} />
+                    </div>
+                  )}
                   <div>
-                    <label className={labelCls}>Hạn mức công nợ (đ)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={creditLimit}
-                      onChange={(e) => setCreditLimit(e.target.value)}
-                      placeholder="0"
-                      className={inputCls}
-                    />
+                    <label className={labelCls}>Thời hạn TT (ngày)</label>
+                    <input type="number" min="0" value={paymentTerm}
+                      onChange={(e) => setPaymentTerm(e.target.value)}
+                      placeholder="0" className={inputCls} />
                   </div>
-                )}
+                </div>
+
+                {/* Tiền tệ + Đánh giá */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className={labelCls}>Tiền tệ</label>
+                    <select value={currency} onChange={(e) => setCurrency(e.target.value)} className={selectCls}>
+                      <option value="VND">VND — Đồng</option>
+                      <option value="CNY">CNY — Nhân dân tệ</option>
+                      <option value="USD">USD — Đô la Mỹ</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelCls}>Đánh giá</label>
+                    <div className="flex items-center gap-0.5 mt-1.5">
+                      {[1,2,3,4,5].map((s) => (
+                        <button key={s} type="button" onClick={() => setRating(rating === s ? 0 : s)}
+                          className={`text-xl leading-none transition-transform hover:scale-110 ${s <= rating ? 'text-amber-400' : 'text-gray-200'}`}>
+                          ★
+                        </button>
+                      ))}
+                      {rating > 0 && (
+                        <button type="button" onClick={() => setRating(0)} className="text-[10px] text-gray-300 hover:text-gray-400 ml-1">xóa</button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* STK + Ngân hàng */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className={labelCls}>Số tài khoản NH</label>
+                    <input type="text" value={bankAccount}
+                      onChange={(e) => setBankAccount(filterDigits(e.target.value))}
+                      placeholder="VD: 0123456789" className={inputCls}
+                      inputMode="numeric" />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Ngân hàng</label>
+                    <input type="text" value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="VD: MB Bank" className={inputCls} />
+                  </div>
+                </div>
+
                 <div>
-                  <label className={labelCls}>Thời hạn thanh toán (ngày)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={paymentTerm}
-                    onChange={(e) => setPaymentTerm(e.target.value)}
-                    placeholder="0"
-                    className={inputCls}
-                  />
+                  <label className={labelCls}>Tên chủ tài khoản</label>
+                  <input type="text" value={bankAccountHolder} onChange={(e) => setBankAccountHolder(e.target.value)} placeholder="Tên in hoa đúng như trên TK" className={inputCls} />
                 </div>
                 <div>
-                  <label className={labelCls}>Số tài khoản ngân hàng</label>
-                  <input type="text" value={bankAccount}
-                    onChange={(e) => setBankAccount(filterDigits(e.target.value))}
-                    placeholder="VD: 0123456789" className={inputCls}
-                    inputMode="numeric" />
-                </div>
-                <div>
-                  <label className={labelCls}>Ngân hàng</label>
-                  <input type="text" value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="Tên ngân hàng / chi nhánh" className={inputCls} />
+                  <label className={labelCls}>Chi nhánh ngân hàng</label>
+                  <input type="text" value={bankBranch} onChange={(e) => setBankBranch(e.target.value)} placeholder="VD: MB Bank - CN Hai Bà Trưng" className={inputCls} />
                 </div>
               </div>
             </Card>

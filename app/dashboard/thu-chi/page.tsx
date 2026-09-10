@@ -190,7 +190,7 @@ export default function ThuChiOverviewPage() {
   return (
     <div className="flex flex-col h-full bg-[#f5f6fa]">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-100">
+      <div className="flex items-center justify-between px-6 py-2.5 bg-white border-b border-gray-100">
         <div>
           <h1 className="text-xl font-bold text-gray-800">Tổng Quan Sổ Quỹ</h1>
           <p className="text-xs text-gray-400 mt-0.5">{curLabel ? `Đang xem: ${curLabel}` : 'Báo cáo thu chi tổng hợp'}</p>
@@ -247,7 +247,7 @@ export default function ThuChiOverviewPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto px-6 py-4 space-y-3">
+      <div className="flex-1 overflow-auto px-6 py-3 space-y-3">
 
         {/* ── 1. KPI CARDS — khớp style Đối Tác / Sản Phẩm ── */}
         <div className="grid grid-cols-4 gap-3">
@@ -261,7 +261,7 @@ export default function ThuChiOverviewPage() {
                 <p className="text-[10px] text-gray-400 font-medium leading-none">{card.label}</p>
                 {loading
                   ? <div className="h-5 w-20 bg-gray-100 rounded mt-0.5 animate-pulse" />
-                  : <p className={`text-base font-bold mt-0.5 leading-none ${card.numColor ?? 'text-slate-700'}`}>{card.value}</p>}
+                  : <p className={`text-sm font-bold mt-0.5 leading-none ${card.numColor ?? 'text-slate-700'}`}>{card.value}</p>}
               </div>
             </button>
           ))}

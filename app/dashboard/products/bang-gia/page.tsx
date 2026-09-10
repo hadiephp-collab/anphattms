@@ -531,7 +531,7 @@ function NamedListsTab() {
         ].map((k) => (
           <div key={k.label} className={`bg-gradient-to-r ${k.color} rounded-xl p-4 text-white`}>
             <p className="text-xs opacity-80">{k.label}</p>
-            <p className="text-2xl font-bold mt-1">{k.value}</p>
+            <p className="text-sm font-bold mt-0.5">{k.value}</p>
           </div>
         ))}
       </div>

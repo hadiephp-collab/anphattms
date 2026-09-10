@@ -105,11 +105,10 @@ export default function PhieuThuDetailPage() {
         </div>
         <div className="flex items-center gap-2">
           {tx.order ? (
-            <a href={`/dashboard/orders/${tx.order.id}`}
-              className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium border border-blue-200 text-blue-700 rounded-xl hover:bg-blue-50 transition">
+            <span className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium border border-gray-200 text-gray-600 rounded-xl">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
               Đơn hàng {tx.order.code}
-            </a>
+            </span>
           ) : (
             !tx.isDeleted && (
               <>
@@ -141,7 +140,7 @@ export default function PhieuThuDetailPage() {
             <svg className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             <p className="text-sm text-blue-700">
               Phiếu thu này được <span className="font-semibold">tạo tự động</span> từ đơn hàng{' '}
-              <a href={`/dashboard/orders/${tx.order.id}`} className="font-semibold underline hover:text-blue-900">{tx.order.code}</a>.
+              <span className="font-semibold font-mono">{tx.order.code}</span>.
               Để điều chỉnh hoặc hủy, vui lòng thao tác trong đơn hàng.
             </p>
           </div>

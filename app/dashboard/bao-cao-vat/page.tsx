@@ -138,14 +138,7 @@ export default function BaoCaoVatPage() {
           <h1 className="text-2xl font-bold text-gray-900">Báo Cáo Thuế VAT</h1>
           <p className="text-sm text-gray-500 mt-0.5">Tổng hợp VAT đầu vào / đầu ra · KCK chuyển kỳ · Nộp bổ sung</p>
         </div>
-        <div className="flex gap-2">
-          <Link href="/dashboard/xuat-hd-vat" className="px-3 py-2 text-sm rounded-lg border border-gray-200 hover:bg-gray-50 transition">
-            Xuất HĐ VAT
-          </Link>
-          <Link href="/dashboard/nhap-hd-vat" className="px-3 py-2 text-sm rounded-lg border border-gray-200 hover:bg-gray-50 transition">
-            Nhập HĐ VAT
-          </Link>
-        </div>
+        <div />
       </div>
 
       {/* Lũy kế block */}

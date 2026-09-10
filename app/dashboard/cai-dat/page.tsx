@@ -101,16 +101,6 @@ const groups: SettingGroup[] = [
         ),
       },
       {
-        href: '/dashboard/van-chuyen/phuong-thuc',
-        label: 'Đơn Vị Vận Chuyển',
-        description: 'Cấu hình các đơn vị VC: GHTK, GHN, Viettel Post...',
-        icon: (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
-          </svg>
-        ),
-      },
-      {
         href: '/dashboard/thu-chi/loai-phieu',
         label: 'Loại Phiếu Thu / Chi',
         description: 'Quản lý danh mục loại phiếu thu và phiếu chi',
@@ -127,32 +117,6 @@ const groups: SettingGroup[] = [
         icon: (
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
-          </svg>
-        ),
-      },
-    ],
-  },
-  {
-    title: 'Bán Hàng',
-    cards: [
-      {
-        href: '/dashboard/cai-dat/nguon-ban-hang',
-        label: 'Nguồn Bán Hàng',
-        description: 'Cấu hình kênh đơn hàng: Zalo, Facebook, cửa hàng, website...',
-        icon: (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
-          </svg>
-        ),
-      },
-      {
-        href: '/dashboard/cai-dat/ly-do-huy-tra',
-        label: 'Lý Do Hủy / Trả Hàng',
-        description: 'Danh sách lý do hủy đơn và trả hàng có thể tùy chỉnh',
-        icon: (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
           </svg>
         ),
       },

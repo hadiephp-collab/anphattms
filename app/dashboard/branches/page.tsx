@@ -175,7 +175,7 @@ export default function BranchesPage() {
   const canDeactivate = (b: Branch) => b.isActive && active.length > 1;
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-4 space-y-3">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -207,7 +207,7 @@ export default function BranchesPage() {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-xs text-gray-500 font-medium">Tổng chi nhánh</p>
-              <p className="text-2xl font-bold mt-1 text-blue-600">{branches.length}</p>
+              <p className="text-base font-bold mt-0.5 text-blue-600">{branches.length}</p>
             </div>
             <span className="text-2xl">🏢</span>
           </div>
@@ -216,7 +216,7 @@ export default function BranchesPage() {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-xs text-gray-500 font-medium">Đang hoạt động</p>
-              <p className="text-2xl font-bold mt-1 text-green-600">{active.length}</p>
+              <p className="text-base font-bold mt-0.5 text-green-600">{active.length}</p>
             </div>
             <span className="text-2xl">✅</span>
           </div>
@@ -225,7 +225,7 @@ export default function BranchesPage() {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-xs text-gray-500 font-medium">Mặc định</p>
-              <p className={`text-base font-bold mt-1 truncate max-w-32 ${defaultBranch ? 'text-purple-600' : 'text-amber-500'}`}>
+              <p className={`text-sm font-bold mt-1 truncate max-w-32 ${defaultBranch ? 'text-purple-600' : 'text-amber-500'}`}>
                 {defaultBranch?.name || 'Chưa đặt'}
               </p>
             </div>
@@ -236,7 +236,7 @@ export default function BranchesPage() {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-xs text-gray-500 font-medium">Tổng nhân viên</p>
-              <p className="text-2xl font-bold mt-1 text-orange-600">{totalNV}</p>
+              <p className="text-base font-bold mt-0.5 text-orange-600">{totalNV}</p>
             </div>
             <span className="text-2xl">👥</span>
           </div>

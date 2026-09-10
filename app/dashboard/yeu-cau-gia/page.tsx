@@ -466,7 +466,7 @@ function KpiCard({
   return (
     <div className={`rounded-xl p-4 text-white ${color}`}>
       <p className="text-xs font-medium opacity-80 uppercase tracking-wide">{label}</p>
-      <p className="text-2xl font-bold mt-1">{value}</p>
+      <p className="text-sm font-bold mt-0.5">{value}</p>
       {sub && <p className="text-xs opacity-70 mt-0.5">{sub}</p>}
     </div>
   );

@@ -25,11 +25,6 @@ const TABS = [
   // Kế toán
   { key: 'thu-chi',              label: 'Thu Chi',              color: '#dc2626', group: 'Kế Toán' },
   { key: 'cong-no',              label: 'Công Nợ',              color: '#0f766e', group: 'Kế Toán' },
-  { key: 'vat-xuat',             label: 'Xuất HĐ VAT',          color: '#1d4ed8', group: 'Kế Toán' },
-  { key: 'vat-nhap',             label: 'Nhập HĐ VAT',          color: '#15803d', group: 'Kế Toán' },
-  { key: 'chot-so',              label: 'Chốt Sổ & Khóa Kỳ',   color: '#374151', group: 'Kế Toán' },
-  { key: 'ho-tro-ke-toan-thue',  label: 'Hỗ Trợ KT Thuế',      color: '#6d28d9', group: 'Kế Toán' },
-  { key: 'von-breakeven',        label: 'Vốn & BreakEven',      color: '#059669', group: 'Kế Toán' },
   // Báo cáo & Hệ thống
   { key: 'bao-cao',              label: 'Báo Cáo',              color: '#9333ea', group: 'Hệ Thống' },
   { key: 'nhat-ky',              label: 'Nhật Ký Hệ Thống',     color: '#475569', group: 'Hệ Thống' },

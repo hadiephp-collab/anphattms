@@ -329,7 +329,7 @@ export default function ProductForm({ initialData, mode }: { initialData?: Produ
   return (
     <form onSubmit={handleSubmit} className="flex flex-col h-full bg-[#f5f6fa]">
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-7 py-4 flex items-center justify-between flex-shrink-0">
+      <div className="bg-white border-b border-gray-100 px-6 py-2.5 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-3">
           <button type="button" onClick={() => router.back()}
             className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 transition">

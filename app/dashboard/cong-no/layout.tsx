@@ -5,7 +5,6 @@ import { usePathname } from 'next/navigation';
 
 const tabs = [
   { href: '/dashboard/cong-no', label: 'Tổng Quan', exact: true },
-  { href: '/dashboard/cong-no/phai-thu', label: 'Phải Thu (KH)' },
   { href: '/dashboard/cong-no/phai-tra', label: 'Phải Trả (NCC & VC)' },
 ];
 

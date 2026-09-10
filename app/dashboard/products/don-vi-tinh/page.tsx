@@ -125,7 +125,7 @@ export default function DonViTinhPage() {
   const activeCount = stats.active;
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-4 space-y-3">
       {/* Header */}
       <div>
         <h1 className="text-xl font-bold text-gray-900">Đơn Vị Tính</h1>
@@ -135,15 +135,15 @@ export default function DonViTinhPage() {
       {/* KPI */}
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-gray-600 text-white rounded-xl p-4">
-          <div className="text-2xl font-bold">{stats.total}</div>
+          <div className="text-base font-bold">{stats.total}</div>
           <div className="text-sm text-white/70 mt-0.5">Tổng đơn vị tính</div>
         </div>
         <div className="bg-green-500 text-white rounded-xl p-4">
-          <div className="text-2xl font-bold">{activeCount}</div>
+          <div className="text-base font-bold">{activeCount}</div>
           <div className="text-sm text-white/70 mt-0.5">Đang hoạt động</div>
         </div>
         <div className={`${defaultUnit ? 'bg-blue-500' : 'bg-amber-500'} text-white rounded-xl p-4`}>
-          <div className="text-2xl font-bold truncate">{defaultUnit ? defaultUnit.name : '—'}</div>
+          <div className="text-base font-bold truncate">{defaultUnit ? defaultUnit.name : '—'}</div>
           <div className="text-sm text-white/70 mt-0.5">{defaultUnit ? 'Mặc định' : 'Chưa đặt mặc định'}</div>
         </div>
       </div>

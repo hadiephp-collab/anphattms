@@ -49,7 +49,7 @@ export default function PhaiTraPage() {
   const typeColor = (t: string) => t === 'supplier' ? 'bg-orange-100 text-orange-700' : t === 'freight' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700';
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-4 space-y-3">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Phải Trả — NCC & Vận Chuyển</h2>
@@ -70,7 +70,7 @@ export default function PhaiTraPage() {
         ].map(k => (
           <div key={k.label} className={`rounded-xl p-4 bg-gradient-to-br ${k.color} text-white`}>
             <p className="text-xs font-medium opacity-80">{k.label}</p>
-            <p className="text-lg font-bold mt-1">{k.isCount ? ((stats?.nccCount ?? 0) + (stats?.vcCount ?? 0)) : VND(k.value)}</p>
+            <p className="text-sm font-bold mt-0.5">{k.isCount ? ((stats?.nccCount ?? 0) + (stats?.vcCount ?? 0)) : VND(k.value)}</p>
             <p className="text-xs opacity-70 mt-1">{k.sub}</p>
           </div>
         ))}
@@ -87,7 +87,7 @@ export default function PhaiTraPage() {
             ].map(b => (
               <div key={b.label} className={`rounded-lg border p-4 ${b.c}`}>
                 <p className="text-xs font-medium">{b.label}</p>
-                <p className="text-xl font-bold mt-1">{VND(b.value)}</p>
+                <p className="text-sm font-bold mt-0.5">{VND(b.value)}</p>
                 <p className="text-xs opacity-70 mt-1">{b.count} đối tác có nợ</p>
               </div>
             ))}

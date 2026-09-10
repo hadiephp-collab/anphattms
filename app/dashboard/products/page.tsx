@@ -147,6 +147,8 @@ export default function ProductsPage() {
   const [limit, setLimit] = useState<20 | 50 | 100>(20);
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [selectionMode, setSelectionMode] = useState(false);
+  const showCheckboxes = selectionMode || selectedIds.size > 0;
   const [search, setSearch] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [filterStatus, setFilterStatus] = useState('true');
@@ -188,7 +190,7 @@ export default function ProductsPage() {
   const visibleCols = colOrder.filter((c) => c.visible);
   const stickyLeft: Record<string, number> = (() => {
     const r: Record<string, number> = {};
-    let left = 40;
+    let left = showCheckboxes ? 40 : 0;
     for (const col of visibleCols) {
       if (col.pinned) { r[col.key] = left; left += colWidths[col.key] ?? DEFAULT_COL_WIDTHS[col.key] ?? 130; }
     }
@@ -380,13 +382,16 @@ export default function ProductsPage() {
   }
 
   function toggleSelect(id: number) {
+    setSelectionMode(true);
     setSelectedIds((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }
   function toggleSelectAll() {
+    setSelectionMode(true);
     setSelectedIds(selectedIds.size === products.length ? new Set() : new Set(products.map((p) => p.id)));
   }
+  function exitSelectionMode() { setSelectionMode(false); setSelectedIds(new Set()); }
 
-  const thBase = 'text-left px-4 py-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider border-b border-gray-200 whitespace-nowrap';
+  const thBase = 'text-left px-4 py-1.5 text-[11px] font-bold text-gray-600 uppercase tracking-wider border-b border-gray-200 whitespace-nowrap';
 
   function SortTh({ label, field, k, style, children }: { label: string; field: string; k: string; style?: React.CSSProperties; children?: React.ReactNode }) {
     const active = sortBy === field;
@@ -544,7 +549,7 @@ export default function ProductsPage() {
       </button>
     );
     return (
-      <td key={key} className={`px-4 py-3 text-sm ${cellClass} whitespace-nowrap group/ec`}>
+      <td key={key} className={`px-4 py-1.5 text-sm ${cellClass} whitespace-nowrap group/ec`}>
         <div className="flex items-center justify-end gap-0.5">
           {pencil}<span>{value != null ? displayFn(value) : dash}</span>
         </div>
@@ -703,7 +708,7 @@ export default function ProductsPage() {
   }
 
   function renderBodyCell(key: string, p: Product) {
-    const tdBase = 'px-4 py-3 text-sm text-gray-500 whitespace-nowrap';
+    const tdBase = 'px-4 py-1.5 text-sm text-gray-500 whitespace-nowrap';
     switch (key) {
       case 'image': {
         const mainImg = p.images?.find((i) => i.isMain) || p.images?.[0];
@@ -814,7 +819,7 @@ export default function ProductsPage() {
   return (
     <div className="flex flex-col h-full bg-[#f5f6fa]">
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-7 py-4 flex items-center justify-between flex-shrink-0">
+      <div className="bg-white border-b border-gray-100 px-6 py-2.5 flex items-center justify-between flex-shrink-0">
         <div>
           <h1 className="text-base font-bold text-gray-900 tracking-tight">Sản Phẩm</h1>
           <p className="text-gray-400 text-xs mt-0.5">Quản lý danh mục sản phẩm và thông tin nhập hàng</p>
@@ -844,7 +849,7 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col min-h-0 px-6 pt-4 pb-4 gap-3">
+      <div className="flex-1 flex flex-col min-h-0 px-6 pt-2.5 pb-2.5 gap-2">
         {/* KPI */}
         <div className="grid grid-cols-4 gap-2 flex-shrink-0">
           {[
@@ -861,13 +866,13 @@ export default function ProductsPage() {
               iconColor: 'text-amber-400', numColor: 'text-amber-600',
               icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /> },
           ].map((k) => (
-            <div key={k.label} className="bg-white rounded-lg border border-gray-100 shadow-sm flex items-center gap-2.5 px-3 py-2">
-              <div className="w-6 h-6 rounded-md bg-gray-50 flex items-center justify-center flex-shrink-0">
+            <div key={k.label} className="bg-white rounded-lg border border-gray-100 shadow-sm flex items-center gap-2 px-3 py-1.5">
+              <div className="w-5 h-5 rounded-md bg-gray-50 flex items-center justify-center flex-shrink-0">
                 <svg className={`w-3 h-3 ${k.iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">{k.icon}</svg>
               </div>
               <div>
                 <p className="text-[10px] text-gray-400 font-medium leading-none">{k.label}</p>
-                <p className={`text-base font-bold mt-0.5 leading-none ${k.numColor}`}>{k.value}</p>
+                <p className={`text-sm font-bold mt-0.5 leading-none ${k.numColor}`}>{k.value}</p>
               </div>
             </div>
           ))}
@@ -908,12 +913,21 @@ export default function ProductsPage() {
                   </div>
                 )}
               </div>
-              <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-xs text-blue-400 hover:text-blue-600 font-medium">Bỏ chọn</button>
+              <button onClick={exitSelectionMode} className="ml-auto text-xs text-blue-400 hover:text-blue-600 font-medium">Bỏ chọn tất cả</button>
             </div>
           )}
 
           {/* Toolbar */}
-          <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-50">
+          <div className="flex items-center gap-3 px-5 py-2 border-b border-gray-50">
+            <button onClick={() => { selectionMode ? exitSelectionMode() : setSelectionMode(true); }} title={selectionMode ? 'Thoát chọn' : 'Chọn nhiều'}
+              className={`w-7 h-7 flex items-center justify-center rounded-lg border transition flex-shrink-0 ${selectionMode ? 'border-blue-400 bg-blue-50 text-blue-600' : 'border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-600'}`}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <rect x="3" y="3" width="7" height="7" rx="1" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/>
+                <rect x="14" y="3" width="7" height="7" rx="1" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/>
+                <rect x="3" y="14" width="7" height="7" rx="1" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M14 17.5h7M17.5 14v7"/>
+              </svg>
+            </button>
             <button onClick={() => setShowColSettings(true)} title="Điều chỉnh & sắp xếp cột"
               className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition flex-shrink-0">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -965,13 +979,13 @@ export default function ProductsPage() {
             <table className="min-w-full text-sm" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
               <thead className="sticky top-0 z-10">
                 <tr className="bg-gray-50/80">
-                  <th className="w-10 pl-4 py-3 border-b border-gray-200" style={{ position: 'sticky', left: 0, zIndex: 22, backgroundColor: 'rgb(249 250 251)' }}>
+                  {showCheckboxes && <th className="w-10 pl-4 py-1.5 border-b border-gray-200" style={{ position: 'sticky', left: 0, zIndex: 22, backgroundColor: 'rgb(249 250 251)' }}>
                     <input type="checkbox"
                       checked={products.length > 0 && selectedIds.size === products.length}
                       ref={(el) => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < products.length; }}
                       onChange={toggleSelectAll}
                       className="w-4 h-4 rounded border-gray-300 accent-blue-600 cursor-pointer" />
-                  </th>
+                  </th>}
                   {visibleCols.map((col) => {
                     const cell = renderHeaderCell(col.key);
                     const left = stickyLeft[col.key];
@@ -1029,10 +1043,10 @@ export default function ProductsPage() {
                     onMouseEnter={() => setHoveredRow(p.id)}
                     onMouseLeave={() => setHoveredRow(null)}
                     className="transition-colors cursor-pointer">
-                    <td className="w-10 pl-4 py-3 border-b border-gray-50" style={{ position: 'sticky', left: 0, zIndex: 9, backgroundColor: rowBg }} onClick={(e) => e.stopPropagation()}>
+                    {showCheckboxes && <td className="w-10 pl-4 py-1.5 border-b border-gray-50" style={{ position: 'sticky', left: 0, zIndex: 9, backgroundColor: rowBg }} onClick={(e) => e.stopPropagation()}>
                       <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleSelect(p.id)}
                         className="w-4 h-4 rounded border-gray-300 accent-blue-600 cursor-pointer" />
-                    </td>
+                    </td>}
                     {visibleCols.map((col) => {
                       const cell = renderBodyCell(col.key, p);
                       const left = stickyLeft[col.key];

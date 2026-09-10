@@ -269,7 +269,7 @@ export default function InventoryPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* ── Header ── */}
-      <div className="bg-white border-b border-gray-200 shadow-sm px-6 py-4 flex items-center justify-between">
+      <div className="bg-white border-b border-gray-200 shadow-sm px-6 py-2.5 flex items-center justify-between">
         <div>
           <h1 className="font-bold text-gray-800 text-lg">Quản lý Kho</h1>
           <p className="text-xs text-gray-400 mt-0.5">Theo dõi tồn kho và biến động hàng hóa</p>
@@ -294,7 +294,7 @@ export default function InventoryPage() {
         </div>
       </div>
 
-      <div className="p-6 max-w-7xl mx-auto space-y-5">
+      <div className="p-4 max-w-7xl mx-auto space-y-3">
 
         {/* ── KPI bar ── */}
         {stockStats && (
@@ -305,12 +305,12 @@ export default function InventoryPage() {
               { label: 'Hết hàng',        value: `${stockStats.outOfStock} SP`,        color: 'text-red-600',   bg: 'bg-red-50',    icon: '🚫' },
               { label: 'Giá trị tồn kho', value: `${fmt(stockStats.inventoryValue)}đ`, color: 'text-green-600', bg: 'bg-green-50',  icon: '💰' },
             ].map(k => (
-              <div key={k.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+              <div key={k.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3">
                 <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl ${k.bg} flex items-center justify-center text-lg flex-shrink-0`}>{k.icon}</div>
+                  <div className={`w-8 h-8 rounded-lg ${k.bg} flex items-center justify-center text-lg flex-shrink-0`}>{k.icon}</div>
                   <div>
                     <p className="text-[11px] text-gray-400 font-medium">{k.label}</p>
-                    <p className={`text-xl font-bold ${k.color}`}>{k.value}</p>
+                    <p className={`text-sm font-bold ${k.color}`}>{k.value}</p>
                   </div>
                 </div>
               </div>
@@ -715,11 +715,7 @@ export default function InventoryPage() {
                             <td className="px-4 py-3 text-right text-sm text-gray-500">{fmtDec(Number(m.stockBefore))}</td>
                             <td className="px-4 py-3 text-right text-sm font-semibold text-gray-800">{fmtDec(Number(m.stockAfter))}</td>
                             <td className="px-4 py-3 text-xs text-gray-500">
-                              {m.referenceId && m.referenceType === 'order' ? (
-                                <Link href={`/dashboard/orders/${m.referenceId}`} className="text-blue-500 hover:text-blue-700 font-medium">
-                                  Đơn #{m.referenceId}
-                                </Link>
-                              ) : m.referenceType === 'stock_count' ? (
+                              {m.referenceType === 'stock_count' ? (
                                 <Link href={`/dashboard/inventory/stock-counts/${m.referenceId}`} className="text-blue-500 hover:text-blue-700 font-medium">
                                   Kiểm #{m.referenceId}
                                 </Link>

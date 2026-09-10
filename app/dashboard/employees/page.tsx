@@ -69,6 +69,7 @@ export default function EmployeesPage() {
   const [visibleCols, setVisibleCols] = useState<Set<string>>(DEFAULT_COLS);
   const [showColSettings, setShowColSettings] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [selectionMode, setSelectionMode] = useState(false);
   const [allBranches, setAllBranches] = useState<Branch[]>([]);
   const [branchModalEmp, setBranchModalEmp] = useState<Employee | null>(null);
   const [branchModalChecked, setBranchModalChecked] = useState<Set<number>>(new Set());
@@ -142,11 +143,19 @@ export default function EmployeesPage() {
     return () => document.removeEventListener('mousedown', h);
   }, []);
 
+  const showCheckboxes = selectionMode || selectedIds.size > 0;
+
   function toggleSelect(id: number) {
+    setSelectionMode(true);
     setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }
   function toggleSelectAll() {
+    setSelectionMode(true);
     setSelectedIds(employees.length > 0 && selectedIds.size === employees.length ? new Set() : new Set(employees.map(e => e.id)));
+  }
+  function exitSelectionMode() {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
   }
 
   async function handleBulkStatus(isActive: boolean) {
@@ -230,7 +239,7 @@ export default function EmployeesPage() {
   return (
     <div className="flex flex-col h-full bg-[#f5f6fa]">
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-7 py-4 flex items-center justify-between flex-shrink-0">
+      <div className="bg-white border-b border-gray-100 px-6 py-2.5 flex items-center justify-between flex-shrink-0">
         <div>
           <h1 className="text-base font-bold text-gray-900 tracking-tight">Nhân Viên</h1>
           <p className="text-gray-400 text-xs mt-0.5">Quản lý hồ sơ và tài khoản nhân viên</p>
@@ -257,7 +266,7 @@ export default function EmployeesPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto px-6 py-5 space-y-4">
+      <div className="flex-1 overflow-auto px-6 py-3 space-y-3">
         {/* KPI */}
         <div className="grid grid-cols-4 gap-3">
           {kpiCards.map(k => (
@@ -267,15 +276,26 @@ export default function EmployeesPage() {
               </div>
               <div>
                 <p className="text-[10px] text-gray-400 font-medium leading-none">{k.label}</p>
-                <p className={`text-base font-bold mt-0.5 leading-none ${k.numColor ?? 'text-slate-700'}`}>{fmt(k.value)}</p>
+                <p className={`text-sm font-bold mt-0.5 leading-none ${k.numColor ?? 'text-slate-700'}`}>{fmt(k.value)}</p>
               </div>
             </div>
           ))}
         </div>
 
         {/* Toolbar */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3">
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-2">
           <div className="flex items-center gap-3">
+            {/* Selection toggle */}
+            <button onClick={() => selectionMode ? exitSelectionMode() : setSelectionMode(true)}
+              title={selectionMode ? 'Thoát chọn' : 'Chọn nhiều'}
+              className={`w-7 h-7 flex items-center justify-center rounded-lg border transition flex-shrink-0 ${selectionMode ? 'border-blue-400 bg-blue-50 text-blue-600' : 'border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-600'}`}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <rect x="3" y="3" width="7" height="7" rx="1" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/>
+                <rect x="14" y="3" width="7" height="7" rx="1" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/>
+                <rect x="3" y="14" width="7" height="7" rx="1" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M14 17.5h7M17.5 14v7"/>
+              </svg>
+            </button>
             {/* Gear — LEFT */}
             <div className="relative flex-shrink-0" ref={colRef}>
               <button onClick={() => setShowColSettings(v => !v)}
@@ -378,9 +398,9 @@ export default function EmployeesPage() {
                   </div>
                 )}
               </div>
-              <button onClick={() => setSelectedIds(new Set())}
+              <button onClick={exitSelectionMode}
                 className="ml-auto text-xs text-blue-400 hover:text-blue-600 transition font-medium">
-                Bỏ chọn
+                Bỏ chọn tất cả
               </button>
             </div>
           )}
@@ -388,20 +408,20 @@ export default function EmployeesPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="w-10 pl-4 py-3">
+                {showCheckboxes && <th className="w-10 pl-4 py-1.5">
                   <input type="checkbox"
                     checked={employees.length > 0 && selectedIds.size === employees.length}
                     ref={el => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < employees.length; }}
                     onChange={toggleSelectAll}
                     className="w-4 h-4 rounded border-gray-300 accent-blue-600 cursor-pointer" />
-                </th>
-                {visibleCols.has('fullName')   && <th className="text-left px-4 py-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Nhân viên</th>}
-                {visibleCols.has('department') && <th className="text-left px-4 py-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Phòng ban / Chức vụ</th>}
-                {visibleCols.has('phone')      && <th className="text-left px-4 py-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Liên hệ</th>}
-                {visibleCols.has('baseSalary') && <th className="text-left px-4 py-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Lương CB</th>}
-                {visibleCols.has('hireDate')   && <th className="text-left px-4 py-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Ngày vào làm</th>}
-                {visibleCols.has('account')    && <th className="text-left px-4 py-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Tài khoản</th>}
-                {visibleCols.has('status')     && <th className="text-left px-4 py-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Trạng thái</th>}
+                </th>}
+                {visibleCols.has('fullName')   && <th className="text-left px-4 py-1.5 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Nhân viên</th>}
+                {visibleCols.has('department') && <th className="text-left px-4 py-1.5 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Phòng ban / Chức vụ</th>}
+                {visibleCols.has('phone')      && <th className="text-left px-4 py-1.5 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Liên hệ</th>}
+                {visibleCols.has('baseSalary') && <th className="text-left px-4 py-1.5 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Lương CB</th>}
+                {visibleCols.has('hireDate')   && <th className="text-left px-4 py-1.5 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Ngày vào làm</th>}
+                {visibleCols.has('account')    && <th className="text-left px-4 py-1.5 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Tài khoản</th>}
+                {visibleCols.has('status')     && <th className="text-left px-4 py-1.5 text-[11px] font-bold text-gray-600 uppercase tracking-wider">Trạng thái</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -411,13 +431,13 @@ export default function EmployeesPage() {
                 <tr><td colSpan={7} className="px-5 py-12 text-center text-gray-400">Không có nhân viên nào</td></tr>
               ) : employees.map(emp => (
                 <tr key={emp.id} onClick={() => router.push(`/dashboard/employees/${emp.id}`)}
-                  className={`cursor-pointer transition-colors ${selectedIds.has(emp.id) ? 'bg-blue-50/40' : 'hover:bg-blue-50/30'}`}>
-                  <td className="w-10 pl-4 py-3" onClick={e => e.stopPropagation()}>
+                  className={`cursor-pointer transition-colors group ${selectedIds.has(emp.id) ? 'bg-blue-50/40' : 'hover:bg-blue-50/30'}`}>
+                  {showCheckboxes && <td className="w-10 pl-4 py-1.5" onClick={e => e.stopPropagation()}>
                     <input type="checkbox" checked={selectedIds.has(emp.id)} onChange={() => toggleSelect(emp.id)}
                       className="w-4 h-4 rounded border-gray-300 accent-blue-600 cursor-pointer" />
-                  </td>
+                  </td>}
                   {visibleCols.has('fullName') && (
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-1.5">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-violet-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
                           {emp.fullName.charAt(0)}
@@ -430,29 +450,29 @@ export default function EmployeesPage() {
                     </td>
                   )}
                   {visibleCols.has('department') && (
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-1.5">
                       {emp.department && <div className="font-medium text-gray-700">{emp.department}</div>}
                       {emp.position   && <div className="text-xs text-gray-400">{emp.position}</div>}
                       {!emp.department && !emp.position && <span className="text-gray-300">—</span>}
                     </td>
                   )}
                   {visibleCols.has('phone') && (
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-1.5">
                       {emp.phone && <div className="text-gray-700">{emp.phone}</div>}
                       {emp.email && <div className="text-xs text-gray-400">{emp.email}</div>}
                       {!emp.phone && !emp.email && <span className="text-gray-300">—</span>}
                     </td>
                   )}
                   {visibleCols.has('baseSalary') && (
-                    <td className="px-4 py-3 text-gray-700 font-medium">
+                    <td className="px-4 py-1.5 text-gray-700 font-medium">
                       {emp.baseSalary > 0 ? fmt(emp.baseSalary) + 'đ' : '—'}
                     </td>
                   )}
                   {visibleCols.has('hireDate') && (
-                    <td className="px-4 py-3 text-gray-600 text-sm">{fmtDate(emp.hireDate)}</td>
+                    <td className="px-4 py-1.5 text-gray-600 text-sm">{fmtDate(emp.hireDate)}</td>
                   )}
                   {visibleCols.has('account') && (
-                    <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                    <td className="px-4 py-1.5" onClick={e => e.stopPropagation()}>
                       {emp.user ? (
                         <div className="flex items-start gap-2">
                           <div>
@@ -476,7 +496,7 @@ export default function EmployeesPage() {
                     </td>
                   )}
                   {visibleCols.has('status') && (
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-1.5">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
                         emp.isActive ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-gray-50 text-gray-400 border border-gray-200'
                       }`}>

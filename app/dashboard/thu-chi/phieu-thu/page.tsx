@@ -120,7 +120,7 @@ function renderThuCell(key: ColKey, tx: Tx): React.ReactNode {
     case 'Đơn hàng':
       return (
         <td key={key} className="px-4 py-3">
-          {tx.order ? <a href={`/dashboard/orders/${tx.order.id}`} className="font-mono text-xs bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded hover:bg-blue-100 hover:underline transition">{tx.order.code}</a> : '—'}
+          {tx.order ? <span className="font-mono text-xs bg-gray-50 text-gray-600 px-1.5 py-0.5 rounded">{tx.order.code}</span> : '—'}
         </td>
       );
     case 'Chứng từ':
@@ -198,6 +198,8 @@ export default function PhieuThuPage() {
   const [branches, setBranches] = useState<{ id: number; name: string }[]>([]);
   const [showColModal, setShowColModal] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [selectionMode, setSelectionMode] = useState(false);
+  const showCheckboxes = selectionMode || selectedIds.size > 0;
   const [showConfirmCancel, setShowConfirmCancel] = useState(false);
 
   const [visibleCols, setVisibleCols] = useState<Record<ColKey, boolean>>(() => {
@@ -266,13 +268,17 @@ export default function PhieuThuPage() {
   }
 
   function toggleSelectAll() {
+    setSelectionMode(true);
     if (selectedIds.size === rows.length) setSelectedIds(new Set());
     else setSelectedIds(new Set(rows.map(r => r.id)));
   }
 
   function toggleSelect(id: number) {
+    setSelectionMode(true);
     setSelectedIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
   }
+
+  function exitSelectionMode(){ setSelectionMode(false); setSelectedIds(new Set()); }
 
   async function handleBulkDelete() {
     setShowConfirmCancel(true);
@@ -473,7 +479,7 @@ export default function PhieuThuPage() {
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
                 In phiếu
               </button>
-              <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-xs text-gray-400 hover:text-gray-600">Bỏ chọn</button>
+              <button onClick={exitSelectionMode} className="ml-auto text-xs text-gray-400 hover:text-gray-600">Bỏ chọn</button>
             </div>
           )}
 
@@ -487,6 +493,16 @@ export default function PhieuThuPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
             </button>
+            <button onClick={() => selectionMode ? exitSelectionMode() : setSelectionMode(true)}
+              title={selectionMode ? 'Thoát chọn' : 'Chọn nhiều'}
+              className={`w-7 h-7 flex items-center justify-center rounded-lg border transition flex-shrink-0 ${selectionMode ? 'border-blue-400 bg-blue-50 text-blue-600' : 'border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-600'}`}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <rect x="3" y="3" width="7" height="7" rx="1" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/>
+                <rect x="14" y="3" width="7" height="7" rx="1" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/>
+                <rect x="3" y="14" width="7" height="7" rx="1" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M14 17.5h7M17.5 14v7"/>
+              </svg>
+            </button>
             <span className="text-xs text-gray-400">{total} phiếu thu</span>
           </div>
 
@@ -494,13 +510,13 @@ export default function PhieuThuPage() {
             <table className="w-full min-w-max text-sm">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
-                  <th className="w-10 pl-4 py-3">
+                  {showCheckboxes && <th className="w-10 pl-4 py-3">
                     <input type="checkbox"
                       checked={rows.length > 0 && selectedIds.size === rows.length}
                       ref={el => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < rows.length; }}
                       onChange={toggleSelectAll}
                       className="w-4 h-4 rounded border-gray-300 accent-emerald-600 cursor-pointer" />
-                  </th>
+                  </th>}
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Ngày thu</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Mã phiếu</th>
                   {orderedVisible.map(key => (
@@ -524,10 +540,10 @@ export default function PhieuThuPage() {
                 ) : (
                   rows.map(tx => (
                     <tr key={tx.id} className={`border-b border-gray-50 hover:bg-gray-50 transition ${tx.isDeleted ? 'opacity-50' : ''} ${selectedIds.has(tx.id) ? 'bg-emerald-50/40' : ''}`}>
-                      <td className="w-10 pl-4 py-3">
+                      {showCheckboxes && <td className="w-10 pl-4 py-3">
                         <input type="checkbox" checked={selectedIds.has(tx.id)} onChange={() => toggleSelect(tx.id)}
                           className="w-4 h-4 rounded border-gray-300 accent-emerald-600 cursor-pointer" />
-                      </td>
+                      </td>}
                       <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{fmtDate(tx.date || tx.createdAt)}</td>
                       <td className="px-4 py-3">
                         <a href={`/dashboard/thu-chi/phieu-thu/${tx.id}`}

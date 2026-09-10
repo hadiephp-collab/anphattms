@@ -26,6 +26,7 @@ export const partnersApi = {
   getProvinces: (): Promise<string[]> => authFetch('/partners/provinces'),
   getTopDebt: (limit = 10) => authFetch(`/partners/top-debt?limit=${limit}`),
   getOne: (id: number) => authFetch(`/partners/${id}`),
+  getPurchaseStats: (id: number) => authFetch(`/partners/${id}/purchase-stats`),
   create: (data: object) => authFetch('/partners', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: number, data: object) => authFetch(`/partners/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   remove: (id: number) => authFetch(`/partners/${id}`, { method: 'DELETE' }),

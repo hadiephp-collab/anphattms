@@ -13,6 +13,8 @@ export default function ProductCategoriesPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<ProductCategory | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [selectionMode, setSelectionMode] = useState(false);
+  const showCheckboxes = selectionMode || selectedIds.size > 0;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -37,10 +39,13 @@ export default function ProductCategoriesPage() {
 
   function openCreate() { setEditing(null); setShowModal(true); }
   function openEdit(cat: ProductCategory) { setEditing(cat); setShowModal(true); }
+  function exitSelectionMode(){ setSelectionMode(false); setSelectedIds(new Set()); }
   function toggleSelect(id: number) {
+    setSelectionMode(true);
     setSelectedIds((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }
   function toggleAll() {
+    setSelectionMode(true);
     setSelectedIds(selectedIds.size === cats.length ? new Set() : new Set(cats.map((c) => c.id)));
   }
 
@@ -49,7 +54,7 @@ export default function ProductCategoriesPage() {
   return (
     <div className="flex flex-col h-full bg-[#f5f6fa]">
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-7 py-4 flex items-center justify-between flex-shrink-0">
+      <div className="bg-white border-b border-gray-100 px-6 py-2.5 flex items-center justify-between flex-shrink-0">
         <div>
           <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
             <a href="/dashboard/products" className="hover:text-blue-500 transition">Sản Phẩm</a>
@@ -83,7 +88,7 @@ export default function ProductCategoriesPage() {
                 </svg>
                 Xóa đã chọn
               </button>
-              <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-xs text-blue-400 hover:text-blue-600 font-medium">Bỏ chọn</button>
+              <button onClick={exitSelectionMode} className="ml-auto text-xs text-blue-400 hover:text-blue-600 font-medium">Bỏ chọn</button>
             </div>
           )}
 
@@ -97,6 +102,16 @@ export default function ProductCategoriesPage() {
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-8 pr-4 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64 bg-gray-50/80 placeholder:text-gray-300" />
             </div>
+            <button onClick={() => selectionMode ? exitSelectionMode() : setSelectionMode(true)}
+              title={selectionMode ? 'Thoát chọn' : 'Chọn nhiều'}
+              className={`w-7 h-7 flex items-center justify-center rounded-lg border transition flex-shrink-0 ${selectionMode ? 'border-blue-400 bg-blue-50 text-blue-600' : 'border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-600'}`}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <rect x="3" y="3" width="7" height="7" rx="1" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/>
+                <rect x="14" y="3" width="7" height="7" rx="1" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/>
+                <rect x="3" y="14" width="7" height="7" rx="1" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M14 17.5h7M17.5 14v7"/>
+              </svg>
+            </button>
             <span className="ml-auto text-xs text-gray-300">{cats.length} loại</span>
           </div>
 
@@ -105,13 +120,13 @@ export default function ProductCategoriesPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50/80">
-                  <th className="w-10 pl-4 py-3 border-b border-gray-200">
+                  {showCheckboxes && <th className="w-10 pl-4 py-3 border-b border-gray-200">
                     <input type="checkbox"
                       checked={cats.length > 0 && selectedIds.size === cats.length}
                       ref={(el) => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < cats.length; }}
                       onChange={toggleAll}
                       className="w-4 h-4 rounded border-gray-300 accent-blue-600 cursor-pointer" />
-                  </th>
+                  </th>}
                   <th className="text-left px-4 py-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider border-b border-gray-200">Tên loại sản phẩm</th>
                   <th className="text-left px-4 py-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider border-b border-gray-200">Mã loại</th>
                   <th className="text-left px-4 py-3 text-[11px] font-bold text-gray-600 uppercase tracking-wider border-b border-gray-200">Ghi chú</th>
@@ -141,10 +156,10 @@ export default function ProductCategoriesPage() {
                   </td></tr>
                 ) : cats.map((cat) => (
                   <tr key={cat.id} className={`border-b border-gray-50 last:border-0 group transition-colors ${selectedIds.has(cat.id) ? 'bg-blue-50/40' : 'hover:bg-blue-50/20'}`}>
-                    <td className="w-10 pl-4 py-3">
+                    {showCheckboxes && <td className="w-10 pl-4 py-3">
                       <input type="checkbox" checked={selectedIds.has(cat.id)} onChange={() => toggleSelect(cat.id)}
                         className="w-4 h-4 rounded border-gray-300 accent-blue-600 cursor-pointer" />
-                    </td>
+                    </td>}
                     <td className="px-4 py-3 font-semibold text-gray-800">{cat.name}</td>
                     <td className="px-4 py-3">
                       {cat.code

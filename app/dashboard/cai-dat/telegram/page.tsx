@@ -142,7 +142,7 @@ export default function TelegramSettingsPage() {
   const canTest = !!form.telegramBotToken && !!form.telegramChatId;
 
   return (
-    <div className="p-6 max-w-2xl mx-auto space-y-5">
+    <div className="p-4 max-w-2xl mx-auto space-y-3">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Telegram Bot</h1>

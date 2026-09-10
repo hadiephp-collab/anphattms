@@ -726,7 +726,7 @@ export default function VaiTroPage() {
   ];
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-4 space-y-3">
       {/* Header */}
       <div>
         <h1 className="text-xl font-bold text-gray-900">Quản Lý Vai Trò</h1>
