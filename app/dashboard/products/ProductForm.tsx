@@ -21,6 +21,11 @@ interface ProductData {
   warehouseLocation?: string; supplierCode?: string; weight?: number; weightUnit?: string;
   tags?: string[]; defaultSupplierId?: number; warrantyMonths?: number;
   variants?: ProductVariant[]; images?: ProductImage[]; invoiceNames?: InvoiceName[];
+  // Customs / import
+  nameChinese?: string; nameEnglish?: string; customsDescription?: string;
+  costPriceCny?: number; hsCode?: string; customsName?: string;
+  customsUsdPrice?: number; packagingInfo?: string; importNotes?: string;
+  packageLength?: number; packageWidth?: number; packageHeight?: number;
 }
 
 interface AttrDef { name: string; values: string; }
@@ -92,6 +97,19 @@ export default function ProductForm({ initialData, mode }: { initialData?: Produ
   const [warrantyMonths, setWarrantyMonths] = useState(initialData?.warrantyMonths?.toString() || '');
   const [weight, setWeight] = useState(initialData?.weight?.toString() || '');
   const [weightUnit, setWeightUnit] = useState(initialData?.weightUnit || 'kg');
+  // Customs / import fields
+  const [nameChinese, setNameChinese] = useState(initialData?.nameChinese || '');
+  const [nameEnglish, setNameEnglish] = useState(initialData?.nameEnglish || '');
+  const [customsDescription, setCustomsDescription] = useState(initialData?.customsDescription || '');
+  const [costPriceCny, setCostPriceCny] = useState(initialData?.costPriceCny?.toString() || '');
+  const [hsCode, setHsCode] = useState(initialData?.hsCode || '');
+  const [customsName, setCustomsName] = useState(initialData?.customsName || '');
+  const [customsUsdPrice, setCustomsUsdPrice] = useState(initialData?.customsUsdPrice?.toString() || '');
+  const [packagingInfo, setPackagingInfo] = useState(initialData?.packagingInfo || '');
+  const [importNotes, setImportNotes] = useState(initialData?.importNotes || '');
+  const [packageLength, setPackageLength] = useState(initialData?.packageLength?.toString() || '');
+  const [packageWidth, setPackageWidth] = useState(initialData?.packageWidth?.toString() || '');
+  const [packageHeight, setPackageHeight] = useState(initialData?.packageHeight?.toString() || '');
   const [isSaleable, setIsSaleable] = useState(initialData?.isSaleable !== false);
   const [isActive, setIsActive] = useState(initialData?.isActive !== false);
   const [tagsInput, setTagsInput] = useState((initialData?.tags || []).join(', '));
@@ -275,6 +293,19 @@ export default function ProductForm({ initialData, mode }: { initialData?: Produ
         ...(supplierCode.trim() && { supplierCode: supplierCode.trim() }),
         ...(weight && { weight: Number(weight), weightUnit }),
         ...(warrantyMonths !== '' && Number(warrantyMonths) >= 0 && { warrantyMonths: Number(warrantyMonths) }),
+        // Customs / import
+        ...(nameChinese.trim() && { nameChinese: nameChinese.trim() }),
+        ...(nameEnglish.trim() && { nameEnglish: nameEnglish.trim() }),
+        ...(customsDescription.trim() && { customsDescription: customsDescription.trim() }),
+        ...(costPriceCny && { costPriceCny: Number(costPriceCny) }),
+        ...(hsCode.trim() && { hsCode: hsCode.trim() }),
+        ...(customsName.trim() && { customsName: customsName.trim() }),
+        ...(customsUsdPrice && { customsUsdPrice: Number(customsUsdPrice) }),
+        ...(packagingInfo.trim() && { packagingInfo: packagingInfo.trim() }),
+        ...(importNotes.trim() && { importNotes: importNotes.trim() }),
+        ...(packageLength && { packageLength: Number(packageLength) }),
+        ...(packageWidth && { packageWidth: Number(packageWidth) }),
+        ...(packageHeight && { packageHeight: Number(packageHeight) }),
         hasVariants,
         isSaleable,
         ...(mode === 'edit' && { isActive }),
@@ -494,6 +525,83 @@ export default function ProductForm({ initialData, mode }: { initialData?: Produ
                   <input type="number" value={warrantyMonths} onChange={(e) => setWarrantyMonths(e.target.value)}
                     placeholder="VD: 12" min={0} max={360} className={inputCls} />
                   <p className="text-xs text-gray-400 mt-1">Để trống nếu không có bảo hành</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Thông tin Hải Quan & Nhập Khẩu */}
+            <div className={sectionCls}>
+              <h3 className="text-sm font-bold text-gray-700 mb-1">Thông tin Hải Quan & Nhập Khẩu</h3>
+              <p className="text-xs text-gray-400 mb-4">Dùng để khai báo hải quan và xuất form gửi đơn vị vận chuyển</p>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>Mã HS (Hải Quan)</label>
+                    <input value={hsCode} onChange={(e) => setHsCode(e.target.value)}
+                      placeholder="VD: 6109.10.10" className={inputCls} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Tên khai báo HQ (tiếng Việt)</label>
+                    <input value={customsName} onChange={(e) => setCustomsName(e.target.value)}
+                      placeholder="Tên dùng khi khai báo hải quan" className={inputCls} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>Tên tiếng Trung</label>
+                    <input value={nameChinese} onChange={(e) => setNameChinese(e.target.value)}
+                      placeholder="产品中文名称" className={inputCls} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Tên tiếng Anh</label>
+                    <input value={nameEnglish} onChange={(e) => setNameEnglish(e.target.value)}
+                      placeholder="Product name in English" className={inputCls} />
+                  </div>
+                </div>
+                <div>
+                  <label className={labelCls}>Mô tả hàng hóa (cho hải quan)</label>
+                  <textarea value={customsDescription} onChange={(e) => setCustomsDescription(e.target.value)}
+                    rows={2} placeholder="Mô tả chi tiết để khai báo hải quan..." className={inputCls} />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>Giá nhập CNY (¥)</label>
+                    <input type="number" value={costPriceCny} onChange={(e) => setCostPriceCny(e.target.value)}
+                      placeholder="0.0000" min={0} step="0.0001" className={inputCls} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Giá khai báo HQ (USD $)</label>
+                    <input type="number" value={customsUsdPrice} onChange={(e) => setCustomsUsdPrice(e.target.value)}
+                      placeholder="0.0000" min={0} step="0.0001" className={inputCls} />
+                  </div>
+                </div>
+                <div>
+                  <label className={labelCls}>Kích thước đóng gói (cm)</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <input type="number" value={packageLength} onChange={(e) => setPackageLength(e.target.value)}
+                        placeholder="Dài (cm)" min={0} step="0.1" className={inputCls} />
+                    </div>
+                    <div>
+                      <input type="number" value={packageWidth} onChange={(e) => setPackageWidth(e.target.value)}
+                        placeholder="Rộng (cm)" min={0} step="0.1" className={inputCls} />
+                    </div>
+                    <div>
+                      <input type="number" value={packageHeight} onChange={(e) => setPackageHeight(e.target.value)}
+                        placeholder="Cao (cm)" min={0} step="0.1" className={inputCls} />
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">Dài × Rộng × Cao — dùng để tính thể tích lô hàng khi xuất form ĐVVC</p>
+                </div>
+                <div>
+                  <label className={labelCls}>Thông tin đóng gói</label>
+                  <input value={packagingInfo} onChange={(e) => setPackagingInfo(e.target.value)}
+                    placeholder="VD: 12 cái/thùng, bọc xốp chống sốc..." className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>Ghi chú nhập khẩu</label>
+                  <textarea value={importNotes} onChange={(e) => setImportNotes(e.target.value)}
+                    rows={2} placeholder="Lưu ý riêng khi nhập khẩu mặt hàng này..." className={inputCls} />
                 </div>
               </div>
             </div>
