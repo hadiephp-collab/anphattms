@@ -63,16 +63,19 @@ const ALL_COLS: ColDef[] = [
   { key:'bankName',          label:'Ngân hàng' },
   { key:'bankAccountHolder', label:'Chủ TK' },
   { key:'bankBranch',        label:'Chi nhánh NH' },
-  { key:'assignedStaff',     label:'NV phụ trách' },
-  { key:'notes',             label:'Ghi chú' },
-  { key:'status',            label:'Trạng thái' },
+  { key:'assignedStaff',          label:'NV phụ trách' },
+  { key:'notes',                  label:'Ghi chú' },
+  { key:'phuongThucVanChuyen',    label:'Phương thức VC' },
+  { key:'diaChiKhoVN',            label:'Kho Việt Nam' },
+  { key:'diaChiKhoTQ',            label:'Kho Trung Quốc' },
+  { key:'status',                 label:'Trạng thái' },
 ];
 
 const DEFAULT_VISIBLE: Record<string,Set<string>> = {
   all:      new Set(['code','name','type','phone','province','rank','totalDebt','status']),
   customer: new Set(['code','name','phone','province','rank','creditLimit','totalDebt','totalOrders','status']),
   supplier: new Set(['code','name','phone','province','supplierDebt','totalPurchase','currency','rating','paymentTerm','status']),
-  freight:  new Set(['code','name','phone','province','supplierDebt','status']),
+  freight:  new Set(['code','name','phone','province','phuongThucVanChuyen','supplierDebt','rating','status']),
 };
 
 const TEXT_DISPLAY_COLS = new Set(['name','address','notes','group','bankBranch','email','contactPerson','bankName','bankAccountHolder']);
@@ -87,6 +90,7 @@ const DEFAULT_COL_WIDTHS: Record<string,number> = {
   contactPerson:130, address:200,
   bankAccount:140, bankName:140, bankAccountHolder:160, bankBranch:160,
   assignedStaff:130, notes:200, status:100,
+  phuongThucVanChuyen:130, diaChiKhoVN:200, diaChiKhoTQ:200,
 };
 
 const STORAGE_KEY_PREFIX    = 'partners_col_order_v3_';
@@ -104,6 +108,7 @@ interface Partner {
   bankAccount?:string; bankName?:string; bankAccountHolder?:string; bankBranch?:string;
   assignedStaff?:{ id:number; name:string };
   notes?:string; isActive:boolean;
+  phuongThucVanChuyen?:string|null; diaChiKhoVN?:string|null; diaChiKhoTQ?:string|null;
 }
 interface Stats {
   total:number; customers:number; suppliers:number; freight:number; vip:number;
@@ -439,6 +444,11 @@ export default function PartnersListPage({ fixedTypeGroup }: { fixedTypeGroup?:'
     await Promise.all([...selectedIds].map((id)=>partnersApi.update(id,{rank})));
     setShowBulkMenu(false); setShowRankPick(false); load();
   }
+  async function handleBulkSetActive(isActive:boolean){
+    if (!confirm(`${isActive?'Bật hoạt động':'Tắt hoạt động'} ${selectedIds.size} đối tác đã chọn?`)) return;
+    await Promise.all([...selectedIds].map((id)=>partnersApi.update(id,{isActive})));
+    setShowBulkMenu(false); load();
+  }
 
   // ── Inline edit ───────────────────────────────────────────────────────
   async function saveEdit(){
@@ -451,8 +461,15 @@ export default function PartnersListPage({ fixedTypeGroup }: { fixedTypeGroup?:'
   // ── CSV export ────────────────────────────────────────────────────────
   function exportCSV(ids?:Set<number>){
     const rows = ids ? partners.filter((p)=>ids.has(p.id)) : partners;
-    const headers = ['Mã','Tên','Loại','SĐT','Email','Tỉnh/TP','Hạng','Nhóm','Đánh giá','Tiền tệ','Công nợ KH','Công nợ NCC','Hạn mức CN','Tổng đơn','Doanh thu','Ngân hàng','Số TK','Chủ TK','Ghi chú','Trạng thái'];
-    const data = rows.map((p)=>[p.code,p.name,TYPE_LABEL[p.type]||p.type,p.phone||'',p.email||'',p.province||'',RANK_LABEL[p.rank]||p.rank,p.group||'',p.rating??'',p.currency||'VND',p.totalDebt??0,p.supplierDebt??0,p.creditLimit??0,p.totalOrders??0,p.totalRevenue??0,p.bankName||'',p.bankAccount||'',p.bankAccountHolder||'',p.notes||'',p.isActive?'Hoạt động':'Ngừng']);
+    let headers: string[];
+    let data: unknown[][];
+    if (fixedTypeGroup === 'freight') {
+      headers = ['Mã','Tên','SĐT','Email','Tỉnh/TP','Đánh giá','Công nợ phí VC','Phương thức VC','Kho VN','Kho TQ','Cách tính cước','Ngân hàng','Số TK','Chủ TK','Ghi chú','Trạng thái'];
+      data = rows.map((p)=>[p.code,p.name,p.phone||'',p.email||'',p.province||'',p.rating??'',p.supplierDebt??0,p.phuongThucVanChuyen==='bien'?'Đường biển':p.phuongThucVanChuyen==='bo'?'Đường bộ':p.phuongThucVanChuyen==='ket_hop'?'Kết hợp':'',p.diaChiKhoVN||'',p.diaChiKhoTQ||'',(p as Partner & {phuongThucTinhCuoc?:string}).phuongThucTinhCuoc||'',p.bankName||'',p.bankAccount||'',p.bankAccountHolder||'',p.notes||'',p.isActive?'Hoạt động':'Ngừng']);
+    } else {
+      headers = ['Mã','Tên','Loại','SĐT','Email','Tỉnh/TP','Hạng','Nhóm','Đánh giá','Tiền tệ','Công nợ KH','Công nợ NCC','Hạn mức CN','Tổng đơn','Doanh thu','Ngân hàng','Số TK','Chủ TK','Ghi chú','Trạng thái'];
+      data = rows.map((p)=>[p.code,p.name,TYPE_LABEL[p.type]||p.type,p.phone||'',p.email||'',p.province||'',RANK_LABEL[p.rank]||p.rank,p.group||'',p.rating??'',p.currency||'VND',p.totalDebt??0,p.supplierDebt??0,p.creditLimit??0,p.totalOrders??0,p.totalRevenue??0,p.bankName||'',p.bankAccount||'',p.bankAccountHolder||'',p.notes||'',p.isActive?'Hoạt động':'Ngừng']);
+    }
     const csv=[headers,...data].map((r)=>r.map((c)=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
     const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob);
     const a=document.createElement('a'); a.href=url; a.download=cfg.csvName; a.click(); URL.revokeObjectURL(url);
@@ -567,6 +584,17 @@ export default function PartnersListPage({ fixedTypeGroup }: { fixedTypeGroup?:'
 
       case 'notes':  return <td key={key} style={style} className={tdCls}>{textContent('notes',p.notes,p.id,'text-gray-500',true)}</td>;
       case 'status': return <td key={key} style={style} className={tdCls}><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.isActive?'bg-emerald-50 text-emerald-600':'bg-gray-100 text-gray-400'}`}>{p.isActive?'Hoạt động':'Ngừng'}</span></td>;
+
+      case 'phuongThucVanChuyen': return <td key={key} style={style} className={tdCls}>
+        {p.phuongThucVanChuyen
+          ? <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.phuongThucVanChuyen==='bien'?'bg-blue-50 text-blue-600':p.phuongThucVanChuyen==='bo'?'bg-amber-50 text-amber-600':'bg-teal-50 text-teal-600'}`}>
+              {p.phuongThucVanChuyen==='bien'?'Đường biển':p.phuongThucVanChuyen==='bo'?'Đường bộ':'Kết hợp'}
+            </span>
+          : <span className="text-gray-300 text-sm">—</span>}
+      </td>;
+      case 'diaChiKhoVN':  return <td key={key} style={style} className={tdCls}><span className="text-sm text-gray-600 truncate block">{p.diaChiKhoVN||<span className="text-gray-300">—</span>}</span></td>;
+      case 'diaChiKhoTQ':  return <td key={key} style={style} className={tdCls}><span className="text-sm text-gray-600 truncate block">{p.diaChiKhoTQ||<span className="text-gray-300">—</span>}</span></td>;
+
       default:       return <td key={key} style={style} className={tdCls}><span className="text-gray-300 text-sm">—</span></td>;
     }
   }
@@ -578,6 +606,8 @@ export default function PartnersListPage({ fixedTypeGroup }: { fixedTypeGroup?:'
       kpis=[{label:'Tổng NCC',value:stats.suppliers,color:'text-violet-600'},{label:'Trong nước',value:stats.domesticSuppliers,color:'text-blue-600'},{label:'Nước ngoài',value:stats.foreignSuppliers,color:'text-orange-600'},{label:'Tổng nợ NCC',value:Number(stats.totalSupplierDebt)>0?fmtNum(Number(stats.totalSupplierDebt)):'0',color:'text-red-600'}];
     } else if (fixedTypeGroup==='customer'){
       kpis=[{label:'Tổng KH',value:stats.customers,color:'text-blue-600'},{label:'VIP',value:stats.vip,color:'text-amber-500'},{label:'Có công nợ',value:stats.customersWithDebt,color:'text-red-500'},{label:'Tổng nợ KH',value:Number(stats.totalCustomerDebt)>0?fmtNum(Number(stats.totalCustomerDebt)):'0',color:'text-red-600'}];
+    } else if (fixedTypeGroup==='freight'){
+      kpis=[{label:'Tổng đơn vị VC',value:stats.freight,color:'text-orange-600'},{label:'Có công nợ',value:stats.freightWithDebt,color:'text-red-500'},{label:'Tổng nợ phí VC',value:Number(stats.totalFreightDebt)>0?fmtNum(Number(stats.totalFreightDebt)):'0',color:'text-red-600'}];
     } else {
       kpis=[{label:'Tổng đối tác',value:stats.total,color:'text-gray-800'},{label:'Khách hàng',value:stats.customers,color:'text-blue-600'},{label:'Nhà cung cấp',value:stats.suppliers,color:'text-violet-600'},{label:'Đơn vị VC',value:stats.freight,color:'text-orange-600'}];
     }
@@ -660,16 +690,20 @@ export default function PartnersListPage({ fixedTypeGroup }: { fixedTypeGroup?:'
               Thao tác <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/></svg>
             </button>
             {showBulkMenu && (
-              <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-gray-100 rounded-xl shadow-xl w-44 py-1.5">
+              <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-gray-100 rounded-xl shadow-xl w-48 py-1.5">
                 <button onClick={()=>exportCSV(selectedIds)} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Xuất CSV đã chọn</button>
-                <div className="relative">
-                  <button onClick={()=>setShowRankPick((o)=>!o)} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Đổi hạng...</button>
-                  {showRankPick && (
-                    <div className="absolute left-full top-0 ml-1 bg-white border border-gray-100 rounded-xl shadow-xl w-36 py-1.5">
-                      {Object.entries(RANK_LABEL).map(([v,l])=><button key={v} onClick={()=>handleBulkRank(v)} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">{l}</button>)}
-                    </div>
-                  )}
-                </div>
+                <button onClick={()=>handleBulkSetActive(true)} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Bật hoạt động</button>
+                <button onClick={()=>handleBulkSetActive(false)} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Tắt hoạt động</button>
+                {fixedTypeGroup !== 'freight' && (
+                  <div className="relative">
+                    <button onClick={()=>setShowRankPick((o)=>!o)} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Đổi hạng...</button>
+                    {showRankPick && (
+                      <div className="absolute left-full top-0 ml-1 bg-white border border-gray-100 rounded-xl shadow-xl w-36 py-1.5">
+                        {Object.entries(RANK_LABEL).map(([v,l])=><button key={v} onClick={()=>handleBulkRank(v)} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">{l}</button>)}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="h-px bg-gray-100 my-1"/>
                 <button onClick={handleBulkDelete} className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50">Xóa {selectedIds.size} đã chọn</button>
               </div>
@@ -765,7 +799,7 @@ export default function PartnersListPage({ fixedTypeGroup }: { fixedTypeGroup?:'
                         className="border-b border-gray-50 cursor-pointer transition-colors"
                         onMouseEnter={()=>setHoveredId(p.id)}
                         onMouseLeave={()=>setHoveredId(null)}
-                        onClick={()=>router.push(`/dashboard/partners/${p.id}`)}
+                        onClick={()=>router.push(fixedTypeGroup==='freight'?`/dashboard/partners/don-vi-van-chuyen/${p.id}`:`/dashboard/partners/${p.id}`)}
                         onContextMenu={(e)=>{ e.preventDefault(); setHighlightId(highlightId===p.id?null:p.id); }}>
                         {showCheckboxes && <td className="w-10 pl-4 py-1.5 border-b border-gray-50"
                           style={{position:'sticky',left:0,zIndex:9,backgroundColor:rowBg}}

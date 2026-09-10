@@ -23,15 +23,15 @@ interface Props {
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 pb-2 border-b border-gray-100">{title}</h3>
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-3">
+      <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 pb-1.5 border-b border-gray-100">{title}</h3>
       {children}
     </div>
   );
 }
 
-const labelCls = 'text-[11px] font-semibold text-gray-400 mb-1 block uppercase tracking-wide';
-const inputCls = 'w-full border border-gray-200 rounded-md px-2.5 py-1.5 text-sm text-gray-800 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white';
+const labelCls = 'text-[10px] font-semibold text-gray-400 mb-0.5 block uppercase tracking-wide';
+const inputCls = 'w-full border border-gray-200 rounded-md px-2 py-1 text-sm text-gray-800 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white';
 const inputErrCls = 'w-full border border-red-300 rounded-md px-2.5 py-1.5 text-sm text-gray-800 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-red-400 bg-white';
 const selectCls = inputCls + ' cursor-pointer';
 
@@ -92,6 +92,12 @@ export default function PartnerFormPage({ partner, isEdit = false }: Props) {
   const [isActive, setIsActive] = useState(true);
   const [nhomGia, setNhomGia] = useState('');
   const [priceListId, setPriceListId] = useState('');
+  // Freight-specific
+  const [phuongThucVanChuyen, setPhuongThucVanChuyen] = useState('');
+  const [phuongThucTinhCuoc, setPhuongThucTinhCuoc] = useState('');
+  const [dacDiem, setDacDiem] = useState('');
+  const [diaChiKhoVN, setDiaChiKhoVN] = useState('');
+  const [diaChiKhoTQ, setDiaChiKhoTQ] = useState('');
 
   useEffect(() => {
     employeesApi.getAll({ limit: '200' })
@@ -140,9 +146,15 @@ export default function PartnerFormPage({ partner, isEdit = false }: Props) {
       setIsActive(partner.isActive !== false);
       setNhomGia((partner.nhomGia as string) || '');
       setPriceListId(partner.priceListId ? String(partner.priceListId) : '');
+      setPhuongThucVanChuyen((partner.phuongThucVanChuyen as string) || '');
+      setPhuongThucTinhCuoc((partner.phuongThucTinhCuoc as string) || '');
+      setDacDiem((partner.dacDiem as string) || '');
+      setDiaChiKhoVN((partner.diaChiKhoVN as string) || '');
+      setDiaChiKhoTQ((partner.diaChiKhoTQ as string) || '');
     }
   }, [partner]);
 
+  const isFreight      = type === 'freight';
   const isSupplierLike = type === 'supplier' || type === 'both' || type === 'freight';
   const isCustomerLike = type === 'customer' || type === 'both';
 
@@ -191,6 +203,11 @@ export default function PartnerFormPage({ partner, isEdit = false }: Props) {
         notes:       notes || undefined,
         nhomGia:     nhomGia || undefined,
         priceListId: priceListId ? Number(priceListId) : undefined,
+        phuongThucVanChuyen: phuongThucVanChuyen || undefined,
+        phuongThucTinhCuoc: phuongThucTinhCuoc || undefined,
+        dacDiem: dacDiem || undefined,
+        diaChiKhoVN: diaChiKhoVN || undefined,
+        diaChiKhoTQ: diaChiKhoTQ || undefined,
       };
 
       if (isEdit) payload.isActive = isActive;
@@ -257,17 +274,17 @@ export default function PartnerFormPage({ partner, isEdit = false }: Props) {
         <form className="grid grid-cols-3 gap-3 items-start" onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
 
           {/* LEFT col-span-2 */}
-          <div className="col-span-2 space-y-3">
+          <div className="col-span-2 space-y-2">
 
             {/* Thông tin cơ bản */}
             <Card title="Thông tin cơ bản">
-              <div className="space-y-2">
-                <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <div className="grid grid-cols-3 gap-2">
                   <div className="col-span-2">
                     <label className={labelCls}>Tên đối tác <span className="text-red-400">*</span></label>
                     <input type="text" value={name} onChange={(e) => { setName(e.target.value); setFieldErrors((p) => ({ ...p, name: '' })); }}
                       placeholder="Nhập tên đối tác..." className={fieldErrors.name ? inputErrCls : inputCls} />
-                    {fieldErrors.name && <p className="text-xs text-red-400 mt-1">{fieldErrors.name}</p>}
+                    {fieldErrors.name && <p className="text-xs text-red-400 mt-0.5">{fieldErrors.name}</p>}
                   </div>
                   <div>
                     <label className={labelCls}>Mã đối tác</label>
@@ -278,7 +295,7 @@ export default function PartnerFormPage({ partner, isEdit = false }: Props) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className={`grid gap-2 ${isFreight ? 'grid-cols-2' : 'grid-cols-4'}`}>
                   <div>
                     <label className={labelCls}>Loại đối tác</label>
                     <select value={type} onChange={(e) => setType(e.target.value)} className={selectCls}>
@@ -288,43 +305,30 @@ export default function PartnerFormPage({ partner, isEdit = false }: Props) {
                       <option value="freight">Đơn vị vận chuyển</option>
                     </select>
                   </div>
-                  <div>
-                    <label className={labelCls}>Hình thức</label>
-                    <select value={customerType} onChange={(e) => setCustomerType(e.target.value)} className={selectCls}>
-                      <option value="individual">Cá nhân</option>
-                      <option value="business">Doanh nghiệp</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className={labelCls}>Hạng</label>
-                    <select value={rank} onChange={(e) => setRank(e.target.value)} className={selectCls}>
-                      <option value="new">Mới</option>
-                      <option value="normal">Thường</option>
-                      <option value="loyal">Thân thiết</option>
-                      <option value="vip">VIP</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className={labelCls}>Nhóm giá</label>
-                    <select value={nhomGia} onChange={(e) => setNhomGia(e.target.value)} className={selectCls}>
-                      <option value="">-- Giá bán lẻ (mặc định) --</option>
-                      <option value="Le">Lẻ</option>
-                      <option value="NoiBo">Nội bộ</option>
-                      <option value="TM1">Thương mại cấp 1</option>
-                      <option value="TM2">Thương mại cấp 2</option>
-                      <option value="TM3">Thương mại cấp 3</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
+                  {!isFreight && (
+                    <div>
+                      <label className={labelCls}>Hình thức</label>
+                      <select value={customerType} onChange={(e) => setCustomerType(e.target.value)} className={selectCls}>
+                        <option value="individual">Cá nhân</option>
+                        <option value="business">Doanh nghiệp</option>
+                      </select>
+                    </div>
+                  )}
+                  {!isFreight && (
+                    <div>
+                      <label className={labelCls}>Hạng</label>
+                      <select value={rank} onChange={(e) => setRank(e.target.value)} className={selectCls}>
+                        <option value="new">Mới</option>
+                        <option value="normal">Thường</option>
+                        <option value="loyal">Thân thiết</option>
+                        <option value="vip">VIP</option>
+                      </select>
+                    </div>
+                  )}
                   <div>
                     <label className={labelCls}>Nguồn</label>
                     <select value={source} onChange={(e) => setSource(e.target.value)} className={selectCls}>
-                      <option value="">-- Chọn nguồn --</option>
+                      <option value="">-- Chọn --</option>
                       <option value="facebook">Facebook</option>
                       <option value="zalo">Zalo</option>
                       <option value="referral">Giới thiệu</option>
@@ -332,7 +336,21 @@ export default function PartnerFormPage({ partner, isEdit = false }: Props) {
                       <option value="other">Khác</option>
                     </select>
                   </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
                   <div>
+                    <label className={labelCls}>Nhóm giá</label>
+                    <select value={nhomGia} onChange={(e) => setNhomGia(e.target.value)} className={selectCls}>
+                      <option value="">-- Bán lẻ (mặc định) --</option>
+                      <option value="Le">Lẻ</option>
+                      <option value="NoiBo">Nội bộ</option>
+                      <option value="TM1">Thương mại cấp 1</option>
+                      <option value="TM2">Thương mại cấp 2</option>
+                      <option value="TM3">Thương mại cấp 3</option>
+                    </select>
+                  </div>
+                  <div className="col-span-2">
                     <label className={labelCls}>Nhóm đối tác</label>
                     <input type="text" value={group} onChange={(e) => setGroup(e.target.value)}
                       placeholder="VD: Khách sỉ, Đại lý cấp 1..." className={inputCls} />
@@ -343,7 +361,7 @@ export default function PartnerFormPage({ partner, isEdit = false }: Props) {
 
             {/* Liên hệ */}
             <Card title="Liên hệ">
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {/* Hàng 1: SĐT | SĐT 2 | Email */}
                 <div className="grid grid-cols-3 gap-2">
                   <div>
@@ -431,6 +449,43 @@ export default function PartnerFormPage({ partner, isEdit = false }: Props) {
               </div>
             </Card>
 
+            {/* Thông tin vận chuyển — chỉ hiện cho freight */}
+            {type === 'freight' && (
+              <Card title="Thông tin vận chuyển">
+                <div className="space-y-1.5">
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className={labelCls}>Phương thức vận chuyển</label>
+                      <select value={phuongThucVanChuyen} onChange={(e) => setPhuongThucVanChuyen(e.target.value)} className={selectCls}>
+                        <option value="">-- Chọn --</option>
+                        <option value="bien">Đường biển</option>
+                        <option value="bo">Đường bộ</option>
+                        <option value="ket_hop">Kết hợp</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelCls}>Kho Việt Nam</label>
+                      <input type="text" value={diaChiKhoVN} onChange={(e) => setDiaChiKhoVN(e.target.value)} placeholder="Địa chỉ kho tại VN..." className={inputCls} />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Kho Trung Quốc</label>
+                      <input type="text" value={diaChiKhoTQ} onChange={(e) => setDiaChiKhoTQ(e.target.value)} placeholder="Địa chỉ kho tại TQ..." className={inputCls} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className={labelCls}>Phương thức tính cước</label>
+                      <textarea value={phuongThucTinhCuoc} onChange={(e) => setPhuongThucTinhCuoc(e.target.value)} rows={2} placeholder="VD: Tính theo CBM, tối thiểu 1m³..." className={inputCls + ' resize-none'} />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Đặc điểm</label>
+                      <textarea value={dacDiem} onChange={(e) => setDacDiem(e.target.value)} rows={2} placeholder="Ưu điểm, nhược điểm, lưu ý..." className={inputCls + ' resize-none'} />
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            )}
+
             {/* Mạng xã hội */}
             <Card title="Mạng xã hội">
               <div className="grid grid-cols-3 gap-2">
@@ -451,7 +506,7 @@ export default function PartnerFormPage({ partner, isEdit = false }: Props) {
           </div>
 
           {/* RIGHT col-span-1 */}
-          <div className="col-span-1 space-y-3">
+          <div className="col-span-1 space-y-2">
 
             {/* Nhân viên phụ trách */}
             <Card title="Nhân viên phụ trách">
@@ -492,7 +547,7 @@ export default function PartnerFormPage({ partner, isEdit = false }: Props) {
 
             {/* Tài chính */}
             <Card title="Tài chính">
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {/* Hạn mức + Thời hạn TT */}
                 <div className={`grid gap-3 ${isCustomerLike ? 'grid-cols-2' : 'grid-cols-1'}`}>
                   {isCustomerLike && (
@@ -511,31 +566,33 @@ export default function PartnerFormPage({ partner, isEdit = false }: Props) {
                   </div>
                 </div>
 
-                {/* Tiền tệ + Đánh giá */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className={labelCls}>Tiền tệ</label>
-                    <select value={currency} onChange={(e) => setCurrency(e.target.value)} className={selectCls}>
-                      <option value="VND">VND — Đồng</option>
-                      <option value="CNY">CNY — Nhân dân tệ</option>
-                      <option value="USD">USD — Đô la Mỹ</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className={labelCls}>Đánh giá</label>
-                    <div className="flex items-center gap-0.5 mt-1.5">
-                      {[1,2,3,4,5].map((s) => (
-                        <button key={s} type="button" onClick={() => setRating(rating === s ? 0 : s)}
-                          className={`text-xl leading-none transition-transform hover:scale-110 ${s <= rating ? 'text-amber-400' : 'text-gray-200'}`}>
-                          ★
-                        </button>
-                      ))}
-                      {rating > 0 && (
-                        <button type="button" onClick={() => setRating(0)} className="text-[10px] text-gray-300 hover:text-gray-400 ml-1">xóa</button>
-                      )}
+                {/* Tiền tệ + Đánh giá — ẩn với ĐVVC */}
+                {!isFreight && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className={labelCls}>Tiền tệ</label>
+                      <select value={currency} onChange={(e) => setCurrency(e.target.value)} className={selectCls}>
+                        <option value="VND">VND — Đồng</option>
+                        <option value="CNY">CNY — Nhân dân tệ</option>
+                        <option value="USD">USD — Đô la Mỹ</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelCls}>Đánh giá</label>
+                      <div className="flex items-center gap-0.5 mt-1.5">
+                        {[1,2,3,4,5].map((s) => (
+                          <button key={s} type="button" onClick={() => setRating(rating === s ? 0 : s)}
+                            className={`text-xl leading-none transition-transform hover:scale-110 ${s <= rating ? 'text-amber-400' : 'text-gray-200'}`}>
+                            ★
+                          </button>
+                        ))}
+                        {rating > 0 && (
+                          <button type="button" onClick={() => setRating(0)} className="text-[10px] text-gray-300 hover:text-gray-400 ml-1">xóa</button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* STK + Ngân hàng */}
                 <div className="grid grid-cols-2 gap-2">
@@ -552,13 +609,15 @@ export default function PartnerFormPage({ partner, isEdit = false }: Props) {
                   </div>
                 </div>
 
-                <div>
-                  <label className={labelCls}>Tên chủ tài khoản</label>
-                  <input type="text" value={bankAccountHolder} onChange={(e) => setBankAccountHolder(e.target.value)} placeholder="Tên in hoa đúng như trên TK" className={inputCls} />
-                </div>
-                <div>
-                  <label className={labelCls}>Chi nhánh ngân hàng</label>
-                  <input type="text" value={bankBranch} onChange={(e) => setBankBranch(e.target.value)} placeholder="VD: MB Bank - CN Hai Bà Trưng" className={inputCls} />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className={labelCls}>Tên chủ tài khoản</label>
+                    <input type="text" value={bankAccountHolder} onChange={(e) => setBankAccountHolder(e.target.value)} placeholder="Tên in hoa đúng như trên TK" className={inputCls} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Chi nhánh NH</label>
+                    <input type="text" value={bankBranch} onChange={(e) => setBankBranch(e.target.value)} placeholder="VD: CN Hai Bà Trưng" className={inputCls} />
+                  </div>
                 </div>
               </div>
             </Card>
@@ -568,7 +627,7 @@ export default function PartnerFormPage({ partner, isEdit = false }: Props) {
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                rows={4}
+                rows={3}
                 placeholder="Ghi chú thêm về đối tác..."
                 className={inputCls + ' resize-none'}
               />
