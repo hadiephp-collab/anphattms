@@ -47,4 +47,6 @@ export const purchaseOrdersApi = {
     authFetch(`/purchase-orders/${id}/costs/${costId}`, { method: 'PATCH', body: JSON.stringify(data) }),
   removeCost:  (id: number, costId: number) =>
     authFetch(`/purchase-orders/${id}/costs/${costId}`, { method: 'DELETE' }),
+
+  getSupplierExport: (id: number) => authFetch(`/purchase-orders/${id}/supplier-export`),
 };

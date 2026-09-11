@@ -411,7 +411,22 @@ export default function PurchaseOrderListPage({
       case 'orderType':     return <td key={key} className="px-4 py-3 text-center"><span className={`text-xs px-2 py-0.5 rounded-full ${po.orderType === 'import' ? 'bg-purple-50 text-purple-600' : 'bg-gray-50 text-gray-500'}`}>{po.orderType === 'import' ? 'Nhập khẩu' : 'Trong nước'}</span></td>;
       case 'totalAmountVnd':return <td key={key} className="px-4 py-3 text-right font-medium text-gray-800">{fmtMoney(po.totalAmountVnd)}</td>;
       case 'paidAmountVnd': return <td key={key} className="px-4 py-3 text-right text-emerald-600 font-medium">{Number(po.paidAmountVnd) > 0 ? fmtMoney(po.paidAmountVnd) : <span className="text-gray-300">—</span>}</td>;
-      case 'debtAmountVnd': return <td key={key} className="px-4 py-3 text-right">{totalDebt > 0 ? <div><span className="font-medium text-red-500">{fmtMoney(totalDebt)}</span>{Number(po.shippingFeeDebt) > 0 && <div className="text-xs text-amber-600">VC: {fmtMoney(po.shippingFeeDebt)}</div>}</div> : <span className="text-gray-300 text-xs">—</span>}</td>;
+      case 'debtAmountVnd': {
+        const foreignDebt = Number(po.debtAmountForeign);
+        const sym = po.currency === 'CNY' ? '¥' : po.currency === 'USD' ? '$' : '₫';
+        const isImportPO = po.orderType === 'import' && foreignDebt > 0;
+        return <td key={key} className="px-4 py-3 text-right">
+          {(isImportPO || totalDebt > 0) ? (
+            <div>
+              {isImportPO
+                ? <span className="font-semibold text-red-500">{sym} {fmtNum(foreignDebt, 2)}</span>
+                : <span className="font-medium text-red-500">{fmtMoney(Number(po.debtAmountVnd))}</span>}
+              {isImportPO && Number(po.debtAmountVnd) > 0 && <div className="text-[10px] text-gray-400">~{fmtMoney(po.debtAmountVnd)}</div>}
+              {Number(po.shippingFeeDebt) > 0 && <div className="text-xs text-amber-600">VC: {fmtMoney(po.shippingFeeDebt)}</div>}
+            </div>
+          ) : <span className="text-gray-300 text-xs">—</span>}
+        </td>;
+      }
       case 'shippingFee':   return <td key={key} className="px-4 py-3 text-right text-gray-600">{Number(po.shippingFee) > 0 ? fmtMoney(po.shippingFee) : <span className="text-gray-300">—</span>}</td>;
       case 'status':        return <td key={key} className="px-4 py-3 text-center"><span className={`text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_STYLE[po.status]}`}>{STATUS_LABEL[po.status]}</span></td>;
       case 'paymentStatus': return <td key={key} className="px-4 py-3 text-center"><span className={`text-xs px-2.5 py-1 rounded-full font-medium ${PAYMENT_STATUS_STYLE[po.paymentStatus]}`}>{PAYMENT_STATUS_LABEL[po.paymentStatus]}</span></td>;
@@ -498,8 +513,10 @@ export default function PurchaseOrderListPage({
               icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /> },
             { label: 'Đã thanh toán', value: fmtMoney(stats.totalPaid),           iconColor: 'text-emerald-400', numColor: 'text-emerald-600',
               icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /> },
-            { label: fixedOrderType === 'domestic' ? 'Tổng nợ NCC' : 'Nợ NCC (ước tính)',
-              value: fmtMoney(fixedOrderType === 'domestic' ? debtAllTime.vnd || 0 : (debtAllTime.total - debtAllTime.shipping) || 0),
+            { label: fixedOrderType === 'domestic' ? 'Tổng nợ NCC' : 'Nợ NCC (ngoại tệ)',
+              value: fixedOrderType === 'import'
+                ? (debtAllTime.cny > 0 ? `¥ ${(debtAllTime.cny || 0).toLocaleString('vi-VN', { maximumFractionDigits: 2 })}` : debtAllTime.usd > 0 ? `$ ${(debtAllTime.usd || 0).toLocaleString('vi-VN', { maximumFractionDigits: 2 })}` : '—')
+                : fmtMoney(debtAllTime.vnd || 0),
               iconColor: 'text-red-400', numColor: 'text-red-600',
               icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /> },
           ] as const).map(k => (

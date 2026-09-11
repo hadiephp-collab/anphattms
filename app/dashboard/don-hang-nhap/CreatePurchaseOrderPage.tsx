@@ -367,7 +367,7 @@ function ProductSearchBar({ onAdd, rate, isImport, scanMode }: { onAdd: (p: Prod
           className={`w-full pl-9 pr-8 py-2.5 text-sm border rounded-xl focus:outline-none focus:ring-2 transition-colors ${
             scanMode
               ? 'border-blue-400 ring-2 ring-blue-100 bg-blue-50/30 placeholder:text-blue-400'
-              : 'border-gray-200 focus:ring-blue-100 focus:border-blue-400'
+              : 'border-gray-200 focus:ring-blue-100 focus:border-blue-400 placeholder:text-gray-400'
           }`} />
         {loading && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 animate-pulse">...</span>}
       </div>
@@ -443,8 +443,7 @@ export default function CreatePurchaseOrderPage({
   const [notes, setNotes]         = useState('');
   const [items, setItems]         = useState<POItem[]>([]);
 
-  // Chi phí nhập hàng (trong sidebar phải)
-  const [showCosts, setShowCosts] = useState(false);
+  // Chi phí nhập hàng — chỉ dùng khi edit để giữ shippingFee
   const [costs, setCosts]         = useState<{ name: string; amount: number; _key: number }[]>([]);
   const costKey = useRef(0);
 
@@ -453,11 +452,6 @@ export default function CreatePurchaseOrderPage({
   const [discountAmount, setDiscountAmount]   = useState(0);
   const [discountPercent, setDiscountPercent] = useState(0);
 
-  // Thanh toán ngay — 2 ô riêng nếu có công ty VC
-  const [supplierPayAmt, setSupplierPayAmt]     = useState(0);
-  const [supplierPayMethod, setSupplierPayMethod] = useState('cash');
-  const [freightPayAmt, setFreightPayAmt]       = useState(0);
-  const [freightPayMethod, setFreightPayMethod] = useState('cash');
 
   const [saving, setSaving]   = useState(false);
   const [savingAs, setSavingAs] = useState<'draft' | 'received' | null>(null);
@@ -513,7 +507,6 @@ export default function CreatePurchaseOrderPage({
       if (po.assignedToId) setEmployeeId(Number(po.assignedToId));
       const shippingFee = Number(po.shippingFee ?? 0);
       if (shippingFee > 0) {
-        setShowCosts(true);
         setCosts([{ name: 'Phí vận chuyển', amount: shippingFee, _key: ++costKey.current }]);
       }
       const poItems = (po.items as Record<string, unknown>[]) ?? [];
@@ -566,8 +559,6 @@ export default function CreatePurchaseOrderPage({
     ? subtotalVnd * discountPercent / 100
     : Number(discountAmount);
   const totalVnd      = subtotalVnd - orderDiscountVnd + totalCosts;
-  const nccDebt     = totalCosts > 0 ? Math.max(0, totalVnd - totalCosts) : totalVnd;
-  const freightDebt = totalCosts > 0 ? totalCosts : 0;
 
   function switchOrderType(t: 'domestic' | 'import') {
     if (fixedOrderType) return;
@@ -607,19 +598,11 @@ export default function CreatePurchaseOrderPage({
     setItems(prev => prev.map(it => ({ ...it, ...calcLine(Number(it.priceForeign), Number(it.quantity), Number(it.discountPercent), Number(it.discountAmount), rate) })));
   }, [rate]); // eslint-disable-line
 
-  // Tự clamp thanh toán khi tổng thay đổi
-  useEffect(() => {
-    setSupplierPayAmt(prev => Math.min(prev, nccDebt));
-  }, [nccDebt]); // eslint-disable-line
-  useEffect(() => {
-    setFreightPayAmt(prev => Math.min(prev, freightDebt));
-  }, [freightDebt]); // eslint-disable-line
 
   async function handleSave(finalStatus: 'draft' | 'received') {
     let hasErr = false;
     if (!branchId) { setBranchError(true); hasErr = true; }
     if (items.length === 0) { setErr('Phải có ít nhất 1 sản phẩm'); hasErr = true; }
-    if (freightPayAmt > 0 && !freightAgent) { setErr('Đã nhập tiền trả VC nhưng chưa chọn công ty vận chuyển. Vui lòng chọn công ty VC hoặc xóa số tiền trả VC.'); hasErr = true; }
     if (hasErr) return;
     setBranchError(false); setErr('');
     setSaving(true); setSavingAs(finalStatus);
@@ -645,21 +628,10 @@ export default function CreatePurchaseOrderPage({
         return;
       }
 
-      const created = await purchaseOrdersApi.create({
-        ...payload,
-        ...(supplierPayAmt > 0 && { initialPaymentAmount: Number(supplierPayAmt), initialPaymentMethod: supplierPayMethod }),
-      });
+      const created = await purchaseOrdersApi.create(payload);
 
-      // Các bước sau (payment, status) — PO đã được tạo, nên lỗi ở đây vẫn navigate về list
       let postErr = '';
-      if (freightPayAmt > 0 && freightAgent) {
-        try {
-          await purchaseOrdersApi.addPayment(created.id, {
-            amount: Number(freightPayAmt), paymentMethod: freightPayMethod, paymentTarget: 'freight',
-          });
-        } catch { postErr = 'Đơn đã tạo nhưng không ghi được thanh toán VC. Vào chi tiết đơn để thanh toán lại.'; }
-      }
-      if (!postErr && finalStatus === 'received') {
+      if (finalStatus === 'received') {
         try {
           await purchaseOrdersApi.updateStatus(created.id, { status: 'received', receivedDate: date });
         } catch { postErr = 'Đơn đã tạo nhưng không cập nhật được trạng thái "Đã nhận". Vào chi tiết đơn để cập nhật lại.'; }
@@ -726,14 +698,9 @@ export default function CreatePurchaseOrderPage({
                 {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
               </button>
             ) : (
-              <>
-                <button onClick={() => handleSave('draft')} disabled={saving} className="px-4 py-2 text-sm font-semibold text-gray-700 border border-gray-300 bg-white rounded-xl hover:bg-gray-50 disabled:opacity-60 transition">
-                  {savingAs === 'draft' ? 'Đang lưu...' : 'Tạo & chưa nhập'}
-                </button>
-                <button onClick={() => handleSave('received')} disabled={saving} className="px-5 py-2 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-60 shadow-sm shadow-blue-200 transition">
-                  {savingAs === 'received' ? 'Đang nhập...' : 'Tạo & nhập hàng'}
-                </button>
-              </>
+              <button onClick={() => handleSave('draft')} disabled={saving} className="px-5 py-2 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-60 shadow-sm shadow-blue-200 transition">
+                {savingAs === 'draft' ? 'Đang lưu...' : 'Tạo đơn nháp'}
+              </button>
             )}
           </div>
         </div>
@@ -811,11 +778,11 @@ export default function CreatePurchaseOrderPage({
               <div className="px-4 py-2.5 border-b border-gray-100"><h3 className="font-semibold text-gray-800 text-sm">Thông tin bổ sung</h3></div>
               <div className="divide-y divide-gray-50">
                 {/* Chi nhánh — bắt buộc */}
-                <div className="px-4 py-2 flex items-start gap-3">
+                <div className="px-4 py-1 flex items-start gap-3">
                   <span className="text-xs font-medium text-gray-500 flex-shrink-0 pt-1.5">Chi nhánh <span className="text-red-500">*</span></span>
                   <div className="flex-1">
                     <select value={branchId} onChange={e => { setBranchId(e.target.value ? Number(e.target.value) : ''); setBranchError(false); }}
-                      className={`w-full border rounded-lg px-2 py-1 text-sm focus:outline-none focus:border-blue-400 bg-white transition ${branchError ? 'border-orange-400 bg-orange-50' : 'border-gray-200'}`}>
+                      className={`w-full border rounded-lg px-2 py-1 text-sm text-gray-900 focus:outline-none focus:border-blue-400 bg-white transition ${branchError ? 'border-orange-400 bg-orange-50' : 'border-gray-200'}`}>
                       <option value="">— Chọn chi nhánh —</option>
                       {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                     </select>
@@ -823,41 +790,41 @@ export default function CreatePurchaseOrderPage({
                   </div>
                 </div>
                 {/* Nhân viên phụ trách */}
-                <div className="px-4 py-2 flex items-center justify-between gap-3">
+                <div className="px-4 py-1 flex items-center justify-between gap-3">
                   <span className="text-xs font-medium text-gray-500 flex-shrink-0">Nhân viên</span>
                   <select value={employeeId} onChange={e => setEmployeeId(e.target.value ? Number(e.target.value) : '')}
-                    className="flex-1 border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:border-blue-400 bg-white">
+                    className="flex-1 border border-gray-200 rounded-lg px-2 py-1 text-sm text-gray-900 focus:outline-none focus:border-blue-400 bg-white">
                     <option value="">— Không chỉ định —</option>
                     {employees.map(e => <option key={e.id} value={e.id}>{e.fullName}</option>)}
                   </select>
                 </div>
-                <div className="px-4 py-2 flex items-center justify-between">
+                <div className="px-4 py-1 flex items-center justify-between">
                   <span className="text-xs font-medium text-gray-500">Ngày đặt</span>
-                  <input type="date" value={date} onChange={e => setDate(e.target.value)} className="border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:border-blue-400" />
+                  <input type="date" value={date} onChange={e => setDate(e.target.value)} className="border border-gray-200 rounded-lg px-2 py-1 text-sm text-gray-900 focus:outline-none focus:border-blue-400" />
                 </div>
-                <div className="px-4 py-2 flex items-center justify-between">
+                <div className="px-4 py-1 flex items-center justify-between">
                   <span className="text-xs font-medium text-gray-500">Dự kiến nhận</span>
-                  <input type="date" value={expectedDate} onChange={e => setExpectedDate(e.target.value)} className="border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:border-blue-400" />
+                  <input type="date" value={expectedDate} onChange={e => setExpectedDate(e.target.value)} className="border border-gray-200 rounded-lg px-2 py-1 text-sm text-gray-900 focus:outline-none focus:border-blue-400" />
                 </div>
                 {isImport && (
                   <>
-                    <div className="px-4 py-2 flex items-center justify-between">
+                    <div className="px-4 py-1 flex items-center justify-between">
                       <span className="text-xs font-medium text-gray-500">Tiền tệ</span>
                       <select value={currency} onChange={e => { setCurrency(e.target.value); if (e.target.value === 'VND') setExchangeRate(1); }}
-                        className="border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:border-blue-400 bg-white">
+                        className="border border-gray-200 rounded-lg px-2 py-1 text-sm text-gray-900 focus:outline-none focus:border-blue-400 bg-white">
                         <option value="CNY">CNY (¥)</option><option value="USD">USD ($)</option>
                       </select>
                     </div>
-                    <div className="px-4 py-2 flex items-center justify-between">
+                    <div className="px-4 py-1 flex items-center justify-between">
                       <span className="text-xs font-medium text-gray-500">1 {currency} = ? ₫</span>
-                      <NumInput value={exchangeRate} onChange={setExchangeRate} className="w-28 border border-gray-200 rounded-lg px-2 py-1 text-sm text-right focus:outline-none focus:border-blue-400" />
+                      <NumInput value={exchangeRate} onChange={setExchangeRate} className="w-28 border border-gray-200 rounded-lg px-2 py-1 text-sm text-right text-gray-900 focus:outline-none focus:border-blue-400" />
                     </div>
                   </>
                 )}
-                <div className="px-4 py-2 flex items-center justify-between gap-2">
+                <div className="px-4 py-1 flex items-center justify-between gap-2">
                   <span className="text-xs font-medium text-gray-500 flex-shrink-0">Tham chiếu / PO#</span>
                   <input value={reference} onChange={e => setReference(e.target.value)} placeholder="Mã PO, hợp đồng..."
-                    className="w-40 border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:border-blue-400" />
+                    className="w-40 border border-gray-200 rounded-lg px-2 py-1 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-400" />
                 </div>
               </div>
             </div>
@@ -992,17 +959,17 @@ export default function CreatePurchaseOrderPage({
                           </div>
                         )}
                       </td>
-                      {visibleCols.sku    && <td className="px-3 py-3 font-mono text-xs text-gray-400">{it.productCode}</td>}
-                      {visibleCols.unit   && <td className="px-3 py-3"><input value={it.unit} onChange={e => updateItem(it._key, { unit: e.target.value })} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-center text-sm focus:outline-none focus:border-blue-400" /></td>}
+                      {visibleCols.sku    && <td className="px-3 py-3 font-mono text-xs text-gray-600">{it.productCode}</td>}
+                      {visibleCols.unit   && <td className="px-3 py-3"><input value={it.unit} onChange={e => updateItem(it._key, { unit: e.target.value })} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-center text-sm text-gray-900 focus:outline-none focus:border-blue-400" /></td>}
                       {visibleCols.stock  && <td className={`px-3 py-3 text-right text-xs font-semibold ${Number(it.stockQty) > 0 ? 'text-emerald-500' : 'text-gray-400'}`}>{it.stockQty != null ? Math.floor(Number(it.stockQty)) : '—'}</td>}
                       <td className="px-3 py-3">
                         <div className="flex items-center justify-center gap-1.5">
                           <button type="button" onClick={() => addQty(it._key, -1)} className="w-7 h-7 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-100 flex items-center justify-center text-sm font-bold transition flex-shrink-0">−</button>
-                          <NumInput value={it.quantity} onChange={v => updateItem(it._key, { quantity: v })} allowDecimal className="w-20 border border-gray-200 rounded-lg px-2 py-1.5 text-center text-sm focus:outline-none focus:border-blue-400" />
+                          <NumInput value={it.quantity} onChange={v => updateItem(it._key, { quantity: v })} allowDecimal className="w-20 border border-gray-200 rounded-lg px-2 py-1.5 text-center text-sm text-gray-900 focus:outline-none focus:border-blue-400" />
                           <button type="button" onClick={() => addQty(it._key, 1)} className="w-7 h-7 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-100 flex items-center justify-center text-sm font-bold transition flex-shrink-0">+</button>
                         </div>
                       </td>
-                      <td className="px-3 py-3"><NumInput value={it.priceForeign} onChange={v => updateItem(it._key, { priceForeign: v })} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-right text-sm focus:outline-none focus:border-blue-400" /></td>
+                      <td className="px-3 py-3"><NumInput value={it.priceForeign} onChange={v => updateItem(it._key, { priceForeign: v })} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-right text-sm text-gray-900 focus:outline-none focus:border-blue-400" /></td>
                       {visibleCols.discount && (
                         <td className="px-3 py-3 text-center" data-discount-popup>
                           {discountPopup?.key === it._key ? (
@@ -1031,10 +998,10 @@ export default function CreatePurchaseOrderPage({
                           )}
                         </td>
                       )}
-                      <td className="px-4 py-3 text-right font-semibold text-gray-800">
+                      <td className="px-4 py-3 text-right">
                         {isImport
-                          ? <><div className="text-xs text-gray-400">{fmtNum(it.totalForeign, 2)}{currSymbol}</div><div>{fmtMoney(it.totalVnd)}</div></>
-                          : fmtMoney(it.totalVnd)}
+                          ? <><div className="font-semibold text-gray-800">{fmtNum(it.totalForeign, 2)}{currSymbol}</div><div className="text-[11px] text-gray-400">{fmtMoney(it.totalVnd)}</div></>
+                          : <span className="font-semibold text-gray-800">{fmtMoney(it.totalVnd)}</span>}
                       </td>
                       <td className="px-2 py-3">
                         <button type="button" onClick={() => setItems(prev => prev.filter(x => x._key !== it._key))}
@@ -1056,10 +1023,10 @@ export default function CreatePurchaseOrderPage({
                     <td />{/* Số lượng */}
                     <td />{/* Đơn giá */}
                     {visibleCols.discount && <td />}
-                    <td className="px-4 py-2.5 text-right font-bold text-gray-800">
+                    <td className="px-4 py-2.5 text-right">
                       {isImport
-                        ? <><div className="text-xs text-gray-400 font-normal">{fmtNum(subtotalForeign, 2)}{currSymbol}</div><div>{fmtMoney(subtotalVnd)}</div></>
-                        : fmtMoney(subtotalVnd)}
+                        ? <><div className="font-bold text-gray-800">{fmtNum(subtotalForeign, 2)}{currSymbol}</div><div className="text-xs text-gray-400 font-normal">{fmtMoney(subtotalVnd)}</div></>
+                        : <span className="font-bold text-gray-800">{fmtMoney(subtotalVnd)}</span>}
                     </td>
                     <td />
                   </tr>
@@ -1100,12 +1067,13 @@ export default function CreatePurchaseOrderPage({
               <div className="divide-y divide-gray-50 text-sm">
 
                 {/* Subtotal */}
-                <div className="flex justify-between items-center px-4 py-2">
+                <div className="flex justify-between items-start px-4 py-2">
                   <span className="text-gray-500">Tổng SP ({items.filter(i => i.productId).length})</span>
-                  <span className="text-gray-700">
-                    {isImport && <span className="text-gray-400 mr-2 text-xs">{fmtNum(subtotalForeign, 2)}{currSymbol}</span>}
-                    {fmtMoney(subtotalVnd)}
-                  </span>
+                  <div className="text-right">
+                    {isImport
+                      ? <><div className="text-gray-700 font-medium">{fmtNum(subtotalForeign, 2)}{currSymbol}</div><div className="text-[11px] text-gray-400">{fmtMoney(subtotalVnd)}</div></>
+                      : <span className="text-gray-700">{fmtMoney(subtotalVnd)}</span>}
+                  </div>
                 </div>
 
                 {/* Chiết khấu đơn */}
@@ -1139,126 +1107,18 @@ export default function CreatePurchaseOrderPage({
                   </div>
                 )}
 
-                {/* Chi phí nhập hàng — collapsible trong sidebar */}
-                <div>
-                  <button type="button" onClick={() => {
-                    if (!showCosts) setCosts([{ name: 'Phí vận chuyển', amount: 0, _key: ++costKey.current }]);
-                    else { setCosts([]); setFreightAgent(null); }
-                    setShowCosts(v => !v);
-                  }} className="w-full flex items-center justify-between px-4 py-2 hover:bg-gray-50 transition">
-                    <span className={`font-medium ${showCosts ? 'text-blue-600' : 'text-gray-500'}`}>
-                      {showCosts ? 'Chi phí nhập hàng' : '+ Thêm chi phí nhập hàng'}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      {totalCosts > 0 && <span className="text-xs font-semibold text-gray-700">+{fmtMoney(totalCosts)}</span>}
-                      <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${showCosts ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                    </div>
-                  </button>
-
-                  {showCosts && (
-                    <div className="px-4 py-3 bg-gray-50/60 border-t border-gray-100 space-y-3">
-                      {/* Compact freight picker */}
-                      <div>
-                        <p className="text-[11px] font-medium text-gray-400 mb-1.5">Công ty VC <span className="font-normal">(tuỳ chọn — ghi nợ riêng)</span></p>
-                        <FreightPicker value={freightAgent} onSelect={selectFreightAgent} />
-                      </div>
-                      {/* Cost lines */}
-                      <div className="space-y-2">
-                        {costs.map((c, idx) => (
-                          <div key={c._key} className="flex gap-2 items-center">
-                            <input value={c.name} onChange={e => setCosts(prev => prev.map((x, i) => i === idx ? { ...x, name: e.target.value } : x))}
-                              placeholder="Tên chi phí" className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-blue-400 bg-white" />
-                            <NumInput value={c.amount} onChange={v => setCosts(prev => prev.map((x, i) => i === idx ? { ...x, amount: v } : x))}
-                              className="w-24 border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-right focus:outline-none focus:border-blue-400 bg-white" />
-                            <button type="button" onClick={() => setCosts(prev => prev.filter((_, i) => i !== idx))} className="text-gray-300 hover:text-red-400 flex-shrink-0">
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                      <button type="button" onClick={() => setCosts(prev => [...prev, { name: '', amount: 0, _key: ++costKey.current }])}
-                        className="flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-700 font-medium transition">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                        Thêm dòng chi phí
-                      </button>
-                    </div>
-                  )}
-                </div>
-
                 {/* Tổng cộng */}
                 <div className="px-4 py-2.5">
-                  <div className="flex justify-between items-center font-bold text-gray-900">
+                  <div className="flex justify-between items-start font-bold text-gray-900">
                     <span>Tổng cộng</span>
-                    <span className="text-blue-700 text-base">{fmtMoney(totalVnd)}</span>
-                  </div>
-                  {/* Breakdown nợ khi có chi phí VC */}
-                  {totalCosts > 0 && (
-                    <div className="mt-2 space-y-1">
-                      <div className="flex justify-between text-xs text-gray-500">
-                        <span>→ Nợ NCC ({supplier?.name ?? 'chưa chọn'})</span><span>{fmtMoney(nccDebt)}</span>
-                      </div>
-                      <div className="flex justify-between text-xs text-amber-600">
-                        <span>→ Nợ VC {freightAgent ? `(${freightAgent.name})` : ''}</span><span>{fmtMoney(freightDebt)}</span>
-                      </div>
+                    <div className="text-right">
+                      {isImport
+                        ? <><div className="text-blue-700 text-base">{fmtNum(subtotalForeign, 2)}{currSymbol}</div><div className="text-xs text-gray-400 font-normal">~{fmtMoney(totalVnd)}</div></>
+                        : <span className="text-blue-700 text-base">{fmtMoney(totalVnd)}</span>}
                     </div>
-                  )}
+                  </div>
                 </div>
 
-                {/* Thanh toán ngay — chỉ khi tạo mới */}
-                {!isEditMode && (<div className="px-4 py-2 space-y-2">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Thanh toán ngay</p>
-                  {/* Trả NCC */}
-                  <div className="space-y-1">
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-xs text-gray-500">{(freightAgent || totalCosts > 0) ? 'Trả NCC' : 'Số tiền'}</span>
-                      {nccDebt > 0 && (
-                        <button type="button" onClick={() => setSupplierPayAmt(nccDebt)}
-                          className="text-[11px] text-blue-500 hover:text-blue-700 transition">
-                          Điền đủ {fmtMoney(nccDebt)}
-                        </button>
-                      )}
-                    </div>
-                    <div className="flex gap-2">
-                      <NumInput value={supplierPayAmt} onChange={v => setSupplierPayAmt(Math.min(v, nccDebt))}
-                        className="w-32 border border-gray-200 rounded-lg px-2 py-1.5 text-right text-sm focus:outline-none focus:border-blue-400 flex-shrink-0" />
-                      <select value={supplierPayMethod} onChange={e => setSupplierPayMethod(e.target.value)}
-                        className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400 bg-white">
-                        <option value="cash">Tiền mặt</option>
-                        <option value="bank_transfer">Chuyển khoản</option>
-                        <option value="other">Khác</option>
-                      </select>
-                    </div>
-                  </div>
-                  {/* Trả VC — hiện khi có công ty VC hoặc có chi phí vận chuyển */}
-                  {(freightAgent || totalCosts > 0) && (
-                    <div className="space-y-1">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <span className="text-xs text-amber-600 font-medium truncate">{freightAgent ? `Trả VC (${freightAgent.name})` : 'Trả VC'}</span>
-                        {freightDebt > 0 && (
-                          <button type="button" onClick={() => setFreightPayAmt(freightDebt)}
-                            className="text-[11px] text-blue-500 hover:text-blue-700 transition flex-shrink-0">
-                            Điền đủ {fmtMoney(freightDebt)}
-                          </button>
-                        )}
-                      </div>
-                      <div className="flex gap-2">
-                        <NumInput value={freightPayAmt} onChange={v => setFreightPayAmt(Math.min(v, freightDebt))}
-                          className="w-32 border border-gray-200 rounded-lg px-2 py-1.5 text-right text-sm focus:outline-none focus:border-blue-400 flex-shrink-0" />
-                        <select value={freightPayMethod} onChange={e => setFreightPayMethod(e.target.value)}
-                          className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400 bg-white">
-                          <option value="cash">Tiền mặt</option>
-                          <option value="bank_transfer">Chuyển khoản</option>
-                          <option value="other">Khác</option>
-                        </select>
-                      </div>
-                    </div>
-                  )}
-                  {(supplierPayAmt > 0 || freightPayAmt > 0) && (
-                    <p className="text-[11px] text-gray-400">
-                      Còn lại: <span className="font-semibold text-gray-600">{fmtMoney(Math.max(0, totalVnd - supplierPayAmt - freightPayAmt))}</span>
-                    </p>
-                  )}
-                </div>)}
               </div>
             </div>
           </div>

@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { purchaseOrdersApi } from '@/lib/purchase-orders';
+import * as XLSX from 'xlsx';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Supplier {
@@ -101,9 +102,21 @@ function InfoRow({ label, children }: { label: string; children: React.ReactNode
 // ─── PaymentPanel (inline modal overlay) ─────────────────────────────────────
 function PaymentPanel({ po, onClose, onSaved }: { po: PurchaseOrder; onClose: () => void; onSaved: () => void }) {
   const hasFreight = !!po.freightAgentId;
+  const isImport = po.orderType === 'import';
+  const currSymbol = po.currency === 'CNY' ? '¥' : po.currency === 'USD' ? '$' : '₫';
+
   const [paymentTarget, setPaymentTarget] = useState<'supplier' | 'freight'>('supplier');
-  const [amount, setAmount] = useState(Number(po.debtAmountVnd) > 0 ? String(po.debtAmountVnd) : '');
-  const [amountForeign, setAmountForeign] = useState('');
+  // For import supplier: foreign is primary, VND auto-calculated. For domestic/freight: VND is primary.
+  const [amountForeign, setAmountForeign] = useState(
+    isImport && Number(po.debtAmountForeign) > 0 ? String(Math.round(Number(po.debtAmountForeign) * 100) / 100) : ''
+  );
+  const [paymentRate, setPaymentRate] = useState(po.exchangeRate ?? 3500);
+  const [amount, setAmount] = useState(() => {
+    if (isImport && Number(po.debtAmountForeign) > 0) {
+      return String(Math.round(Number(po.debtAmountForeign) * Number(po.exchangeRate ?? 1)));
+    }
+    return Number(po.debtAmountVnd) > 0 ? String(po.debtAmountVnd) : '';
+  });
   const [method, setMethod] = useState('cash');
   const [date, setDate] = useState(today());
   const [notesVal, setNotesVal] = useState('');
@@ -111,15 +124,35 @@ function PaymentPanel({ po, onClose, onSaved }: { po: PurchaseOrder; onClose: ()
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
 
-  const isImport = po.orderType === 'import';
-  const currSymbol = po.currency === 'CNY' ? '¥' : po.currency === 'USD' ? '$' : '₫';
+  // When user edits foreign amount or rate, auto-calc VND for import supplier
+  function handleForeignChange(val: string) {
+    setAmountForeign(val);
+    const f = parseFloat(val) || 0;
+    if (f > 0 && paymentRate > 0) setAmount(String(Math.round(f * paymentRate)));
+    else setAmount('');
+  }
+  function handleRateChange(val: string) {
+    const r = parseFloat(val) || 0;
+    setPaymentRate(r);
+    const f = parseFloat(amountForeign) || 0;
+    if (f > 0 && r > 0) setAmount(String(Math.round(f * r)));
+  }
 
   function handleTargetChange(t: 'supplier' | 'freight') {
     setPaymentTarget(t); setErr('');
-    setAmount(t === 'freight'
-      ? (Number(po.shippingFeeDebt) > 0 ? String(po.shippingFeeDebt) : '')
-      : (Number(po.debtAmountVnd) > 0 ? String(po.debtAmountVnd) : ''));
-    setAmountForeign('');
+    if (t === 'freight') {
+      setAmount(Number(po.shippingFeeDebt) > 0 ? String(po.shippingFeeDebt) : '');
+      setAmountForeign('');
+    } else {
+      if (isImport && Number(po.debtAmountForeign) > 0) {
+        const f = Math.round(Number(po.debtAmountForeign) * 100) / 100;
+        setAmountForeign(String(f));
+        setAmount(String(Math.round(f * Number(po.exchangeRate ?? 1))));
+      } else {
+        setAmount(Number(po.debtAmountVnd) > 0 ? String(po.debtAmountVnd) : '');
+        setAmountForeign('');
+      }
+    }
   }
 
   const debtSummary = paymentTarget === 'freight'
@@ -127,7 +160,12 @@ function PaymentPanel({ po, onClose, onSaved }: { po: PurchaseOrder; onClose: ()
     : { label: `NCC (${po.supplier?.name ?? ''})`, debt: po.debtAmountVnd, paid: po.paidAmountVnd, total: Number(po.totalAmountVnd) - Number(po.shippingFee) };
 
   async function handleSave() {
-    if (!amount || Number(amount) <= 0) { setErr('Nhập số tiền hợp lệ'); return; }
+    const isImportSupplier = isImport && paymentTarget === 'supplier';
+    if (isImportSupplier) {
+      if (!amountForeign || Number(amountForeign) <= 0) { setErr(`Nhập số ${po.currency} cần thanh toán`); return; }
+    } else {
+      if (!amount || Number(amount) <= 0) { setErr('Nhập số tiền hợp lệ'); return; }
+    }
     setSaving(true); setErr('');
     try {
       await purchaseOrdersApi.addPayment(po.id, {
@@ -140,6 +178,8 @@ function PaymentPanel({ po, onClose, onSaved }: { po: PurchaseOrder; onClose: ()
     } catch (e: unknown) { setErr(e instanceof Error ? e.message : 'Lỗi'); }
     setSaving(false);
   }
+
+  const showImportSupplierFlow = isImport && paymentTarget === 'supplier';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
@@ -163,25 +203,61 @@ function PaymentPanel({ po, onClose, onSaved }: { po: PurchaseOrder; onClose: ()
               </button>
             </div>
           )}
+          {/* Debt summary */}
           <div className="bg-blue-50 rounded-xl px-4 py-3 text-sm">
             <p className="text-xs text-blue-600 font-medium mb-2">{debtSummary.label}</p>
-            <div className="flex justify-between text-gray-600"><span>Tổng</span><span>{fmtMoney(debtSummary.total)}</span></div>
-            <div className="flex justify-between text-gray-600 mt-1"><span>Đã thanh toán</span><span>{fmtMoney(debtSummary.paid)}</span></div>
-            <div className="flex justify-between font-semibold text-red-600 mt-1 pt-1 border-t border-blue-100">
-              <span>Còn nợ</span>
-              <span>{fmtMoney(debtSummary.debt)}{paymentTarget === 'supplier' && isImport && Number(po.debtAmountForeign) > 0 ? ` (${fmtNum(po.debtAmountForeign, 2)}${currSymbol})` : ''}</span>
-            </div>
+            {showImportSupplierFlow ? (
+              <>
+                <div className="flex justify-between text-gray-600"><span>Tổng đơn</span><span className="font-medium">{currSymbol} {fmtNum(po.subtotalForeign, 2)}</span></div>
+                <div className="flex justify-between text-gray-600 mt-1"><span>Đã thanh toán</span><span className="font-medium text-emerald-600">{currSymbol} {fmtNum(po.paidAmountForeign, 2)}</span></div>
+                <div className="flex justify-between font-semibold text-red-600 mt-1 pt-1 border-t border-blue-100">
+                  <span>Còn nợ</span>
+                  <span className="text-base">{currSymbol} {fmtNum(po.debtAmountForeign, 2)}</span>
+                </div>
+                <div className="flex justify-between text-gray-400 text-xs mt-1">
+                  <span>Ước tính VND (tỉ giá đặt hàng)</span>
+                  <span>~{fmtMoney(debtSummary.debt)}</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex justify-between text-gray-600"><span>Tổng</span><span>{fmtMoney(debtSummary.total)}</span></div>
+                <div className="flex justify-between text-gray-600 mt-1"><span>Đã thanh toán</span><span>{fmtMoney(debtSummary.paid)}</span></div>
+                <div className="flex justify-between font-semibold text-red-600 mt-1 pt-1 border-t border-blue-100">
+                  <span>Còn nợ</span>
+                  <span>{fmtMoney(debtSummary.debt)}</span>
+                </div>
+              </>
+            )}
           </div>
-          <div>
-            <label className="text-xs font-medium text-gray-500 mb-1 block">Số tiền (VND)</label>
-            <input type="number" min="0" value={amount} onChange={e => setAmount(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-blue-400" />
-          </div>
-          {isImport && paymentTarget === 'supplier' && (
+
+          {/* Input fields */}
+          {showImportSupplierFlow ? (
+            <>
+              <div>
+                <label className="text-xs font-medium text-gray-700 mb-1 block">Số {po.currency} thanh toán <span className="text-red-500">*</span></label>
+                <input type="number" min="0" step="any" value={amountForeign} onChange={e => handleForeignChange(e.target.value)}
+                  className="w-full border border-blue-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-blue-500 bg-blue-50/30" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">Tỉ giá lúc TT (₫/{po.currency})</label>
+                  <input type="number" min="0" step="any" value={paymentRate} onChange={e => handleRateChange(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-blue-400" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">VND quy đổi (tự tính)</label>
+                  <div className="border border-gray-100 rounded-xl px-3 py-2.5 text-sm text-gray-500 bg-gray-50">
+                    {Number(amount) > 0 ? fmtMoney(Number(amount)) : '—'}
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
             <div>
-              <label className="text-xs font-medium text-gray-500 mb-1 block">Số {po.currency} đã trả (tuỳ chọn)</label>
-              <input type="number" min="0" step="any" value={amountForeign} onChange={e => setAmountForeign(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-blue-400" />
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Số tiền (VND)</label>
+              <input type="number" min="0" value={amount} onChange={e => setAmount(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-blue-400" />
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">
@@ -277,7 +353,7 @@ function ProgressBar({ po, className = 'mt-5 pt-4 border-t border-gray-100' }: {
   const isCancelled = po.status === 'cancelled';
   const steps = [
     { label: 'Tạo đơn', date: po.createdAt },
-    { label: 'Đặt hàng', date: po.date },
+    { label: 'Đặt hàng', date: (po.status === 'ordered' || po.status === 'received') ? po.date : null },
     { label: 'Nhận hàng', date: po.receivedDate },
   ];
   const doneCount = po.status === 'received' ? 3 : po.status === 'ordered' ? 1 : 0;
@@ -460,6 +536,102 @@ export default function PurchaseOrderDetailPage() {
 
   function handlePrint() { window.open(`/print/don-hang-nhap/${po!.id}`, '_blank'); }
 
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showExportMenu) return;
+    function handleClick(e: MouseEvent) {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setShowExportMenu(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showExportMenu]);
+
+  function handleSupplierPrint() {
+    setShowExportMenu(false);
+    window.open(`/print/don-hang-nhap/${po!.id}/supplier`, '_blank');
+  }
+
+  async function handleSupplierExcel() {
+    setShowExportMenu(false);
+    if (!po) return;
+    try {
+      const data = await purchaseOrdersApi.getSupplierExport(po.id);
+      const { po: pInfo, items, summary } = data;
+      const sym = pInfo.currency === 'CNY' ? '¥' : pInfo.currency === 'USD' ? '$' : '₫';
+      const fmtN = (n: number, d = 2) => Number(n).toFixed(d);
+
+      const headerRows = [
+        ['采购订单 / PURCHASE ORDER / ĐƠN ĐẶT HÀNG'],
+        [],
+        ['订单编号 (Mã đơn)', pInfo.code, '', '供应商 (NCC)', pInfo.supplier?.name ?? '—'],
+        ['下单日期 (Ngày đặt)', pInfo.date ?? '—', '', '联系人 (Liên hệ)', pInfo.supplier?.contactPerson ?? '—'],
+        ['预计交货 (Dự kiến nhận)', pInfo.expectedDeliveryDate ?? '—', '', '电话 (SĐT)', pInfo.supplier?.phone ?? '—'],
+        ['结算货币 (Tiền tệ)', `${pInfo.currency} (1 ${pInfo.currency} = ${pInfo.exchangeRate} VND)`],
+        [],
+      ];
+
+      const tableHeader = [
+        '序号\nSTT',
+        '商品编号\nMã NCC',
+        '商品名称 / 越南名\n中文名 / Tên SP',
+        '越南编号\nMã VN',
+        '单位\nĐVT',
+        `数量\nSL`,
+        `单价(${sym})\nĐơn giá`,
+        `金额(${sym})\nThành tiền`,
+        '重量(g)\nKhối lượng',
+        '备注\nGhi chú',
+      ];
+
+      const tableRows = items.map((item: any) => [
+        item.no,
+        item.supplierCode || '',
+        item.nameChinese ? `${item.nameChinese}\n${item.productName}` : item.productName,
+        item.productCode,
+        item.unit,
+        item.quantity,
+        Number(fmtN(item.priceForeign)),
+        Number(fmtN(item.totalForeign)),
+        item.weight != null ? item.weight * item.quantity : '',
+        item.notes || '',
+      ]);
+
+      const discountPct = summary.totalForeign > 0
+        ? ((summary.discountAmount / summary.totalForeign) * 100).toFixed(2)
+        : '0.00';
+
+      const footerRows = [
+        summary.discountAmount > 0
+          ? ['', '', `折扣 ${discountPct}% / Chiết khấu`, '', '', '', '', -Number(fmtN(summary.discountAmount)), '', '']
+          : null,
+        [`合计 / TỔNG CỘNG (${summary.itemCount} mặt hàng)`, '', '', '', '',
+          summary.totalQty, '', Number(fmtN(summary.netForeign)), summary.totalWeight > 0 ? summary.totalWeight : '', ''],
+      ].filter(Boolean) as any[][];
+
+      const ws = XLSX.utils.aoa_to_sheet([
+        ...headerRows,
+        tableHeader,
+        ...tableRows,
+        ...footerRows,
+        [],
+        ['备注 / Ghi chú:', pInfo.notes || pInfo.reference || ''],
+      ]);
+
+      // Column widths
+      ws['!cols'] = [8, 14, 36, 14, 8, 8, 12, 14, 12, 20].map(w => ({ wch: w }));
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '采购订单');
+      XLSX.writeFile(wb, `${pInfo.code}_NCC_${new Date().toISOString().slice(0,10)}.xlsx`);
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Lỗi xuất Excel');
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -518,6 +690,35 @@ export default function PurchaseOrderDetailPage() {
             </svg>
             In đơn
           </button>
+          {isImport && (
+            <div className="relative" ref={exportMenuRef}>
+              <button
+                onClick={() => setShowExportMenu(v => !v)}
+                className="px-4 py-2 rounded-xl text-sm font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Xuất NCC
+                <svg className="w-3 h-3 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {showExportMenu && (
+                <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[160px]">
+                  <button
+                    onClick={handleSupplierExcel}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                    <span>📊</span> Excel (.xlsx)
+                  </button>
+                  <button
+                    onClick={handleSupplierPrint}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                    <span>🖨️</span> In PDF
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           {canChangeStatus && (
             <button
               onClick={() => setShowCancel(true)}
@@ -539,66 +740,63 @@ export default function PurchaseOrderDetailPage() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-6 space-y-4">
+      <div className="max-w-6xl mx-auto px-4 py-4 space-y-3">
         {actionError && (
           <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">{actionError}</div>
         )}
 
         {/* ── Order header card ── */}
-        <div className="bg-white rounded-2xl shadow-sm px-6 py-5">
-          <div className="flex items-start gap-5">
-            {/* Left: code + pills + timestamp + action buttons */}
+        <div className="bg-white rounded-2xl shadow-sm px-4 py-3">
+          <div className="flex items-start gap-4">
+            {/* Left: code + pills + timestamp */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2.5 flex-wrap mb-1">
-                <h1 className="text-lg font-mono font-bold text-gray-900 tracking-wide">{po.code}</h1>
-                <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_STYLE[po.status]}`}>
+              <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                <h1 className="text-base font-mono font-bold text-gray-900 tracking-wide">{po.code}</h1>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLE[po.status]}`}>
                   {STATUS_LABEL[po.status]}
                 </span>
-                <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${PAYMENT_STATUS_STYLE[po.paymentStatus]}`}>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_STYLE[po.paymentStatus]}`}>
                   {PAYMENT_STATUS_LABEL[po.paymentStatus]}
                 </span>
                 {isImport && (
-                  <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-purple-50 text-purple-600 border border-purple-100">
+                  <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-purple-50 text-purple-600 border border-purple-100">
                     {CURRENCY_LABEL[po.currency] ?? po.currency}
                   </span>
                 )}
                 {!isCancelled && isReceived && (
                   <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                     </svg>
-                    Đã hoàn tất
+                    Hoàn tất
                   </span>
                 )}
               </div>
-              <p className="text-xs text-gray-400 mb-4">
+              <p className="text-[11px] text-gray-400">
                 {fmtDatetime(po.createdAt)}
                 {po.updatedAt !== po.createdAt && <span> · Cập nhật {fmtDatetime(po.updatedAt)}</span>}
               </p>
-              {/* Action buttons row */}
-              <div className="flex items-center gap-2 flex-wrap">
-                {!isCancelled && isDraft && (
-                  <button
-                    onClick={() => handleStatus('ordered')}
-                    disabled={!!actionLoading}
-                    className="px-4 py-2 rounded-xl text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition shadow-sm">
-                    {actionLoading === 'ordered' ? 'Đang xử lý...' : '→ Đặt hàng'}
-                  </button>
-                )}
-                {!isCancelled && isOrdered && (
-                  <button
-                    onClick={() => handleStatus('received')}
-                    disabled={!!actionLoading}
-                    className="px-4 py-2 rounded-xl text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition shadow-sm">
-                    {actionLoading === 'received' ? 'Đang xử lý...' : '✓ Nhận hàng'}
-                  </button>
-                )}
-              </div>
             </div>
 
-            {/* Right: progress bar */}
-            <div className="flex-shrink-0 w-64 border-l border-gray-100 pl-5">
+            {/* Right: progress bar + action button below */}
+            <div className="flex-shrink-0 w-60 border-l border-gray-100 pl-4">
               <ProgressBar po={po} className="" />
+              {!isCancelled && isDraft && (
+                <button
+                  onClick={() => handleStatus('ordered')}
+                  disabled={!!actionLoading}
+                  className="mt-2 w-full px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition">
+                  {actionLoading === 'ordered' ? 'Đang xử lý...' : '→ Đặt hàng'}
+                </button>
+              )}
+              {!isCancelled && isOrdered && (
+                <button
+                  onClick={() => handleStatus('received')}
+                  disabled={!!actionLoading}
+                  className="mt-2 w-full px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition">
+                  {actionLoading === 'received' ? 'Đang xử lý...' : '✓ Nhận hàng'}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -785,8 +983,14 @@ export default function PurchaseOrderDetailPage() {
               <div className="flex items-center gap-6 text-sm flex-wrap mb-3">
                 <div>
                   <span className="text-gray-500">Tiền cần trả NCC: </span>
-                  <span className="font-medium text-gray-800">{fmtMoney(Number(po.totalAmountVnd) - Number(po.shippingFee))}</span>
-                  {isImport && <span className="text-gray-400 ml-1 text-xs">({fmtNum(po.subtotalForeign, 2)} {po.currency})</span>}
+                  {isImport ? (
+                    <>
+                      <span className="font-medium text-gray-800">{fmtNum(po.subtotalForeign, 2)} {po.currency}</span>
+                      <span className="text-gray-400 ml-1 text-xs">(~{fmtMoney(Number(po.totalAmountVnd) - Number(po.shippingFee))})</span>
+                    </>
+                  ) : (
+                    <span className="font-medium text-gray-800">{fmtMoney(Number(po.totalAmountVnd) - Number(po.shippingFee))}</span>
+                  )}
                 </div>
                 <div>
                   <span className="text-gray-500">Đã trả: </span>
@@ -794,9 +998,13 @@ export default function PurchaseOrderDetailPage() {
                 </div>
                 <div>
                   <span className="text-gray-500">Còn phải trả: </span>
-                  <span className="font-semibold text-red-600">{fmtMoney(po.debtAmountVnd)}</span>
-                  {isImport && Number(po.debtAmountForeign) > 0 && (
-                    <span className="text-red-400 ml-1 text-xs">({fmtNum(po.debtAmountForeign, 2)}{currSymbol})</span>
+                  {isImport && Number(po.debtAmountForeign) > 0 ? (
+                    <>
+                      <span className="font-semibold text-red-600">{fmtNum(po.debtAmountForeign, 2)}{currSymbol}</span>
+                      <span className="text-red-400 ml-1 text-xs">(~{fmtMoney(po.debtAmountVnd)})</span>
+                    </>
+                  ) : (
+                    <span className="font-semibold text-red-600">{fmtMoney(po.debtAmountVnd)}</span>
                   )}
                 </div>
               </div>
