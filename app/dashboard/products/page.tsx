@@ -90,6 +90,8 @@ const DEFAULT_COL_WIDTHS: Record<string, number> = {
   variants: 76, status: 110,
 };
 const COL_WIDTHS_KEY = 'products_col_widths_v1';
+const ROW_HEIGHTS_KEY = 'products_row_heights_v1';
+const DEFAULT_ROW_HEIGHT = 44;
 
 const DEFAULT_DISPLAY: Record<string, 'truncate' | 'clamp' | 'wrap'> = {
   name: 'truncate',
@@ -174,7 +176,15 @@ export default function ProductsPage() {
     } catch {}
     return { ...DEFAULT_COL_WIDTHS };
   });
+  const [rowHeights, setRowHeights] = useState<Record<number, number>>(() => {
+    try {
+      const saved = localStorage.getItem(ROW_HEIGHTS_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {};
+  });
   const bulkMenuRef = useRef<HTMLDivElement>(null);
+  const rowResizingRef = useRef(false);
 
   useEffect(() => { setColOrder(loadColOrder()); }, []);
 
@@ -196,6 +206,33 @@ export default function ProductsPage() {
     }
     return r;
   })();
+
+  function onRowResizeMouseDown(e: React.MouseEvent, productId: number) {
+    e.preventDefault();
+    e.stopPropagation();
+    rowResizingRef.current = true;
+    const startY = e.clientY;
+    const startH = rowHeights[productId] ?? DEFAULT_ROW_HEIGHT;
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+    function onMove(ev: MouseEvent) {
+      const newH = Math.max(28, startH + ev.clientY - startY);
+      setRowHeights((prev) => {
+        const next = { ...prev, [productId]: newH };
+        try { localStorage.setItem(ROW_HEIGHTS_KEY, JSON.stringify(next)); } catch {}
+        return next;
+      });
+    }
+    function onUp() {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      setTimeout(() => { rowResizingRef.current = false; }, 50);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
 
   function onResizeMouseDown(e: React.MouseEvent, colKey: string) {
     e.preventDefault();
@@ -1039,10 +1076,19 @@ export default function ProductsPage() {
                   return (
                   <React.Fragment key={p.id}>
                   <tr
-                    onClick={() => router.push(`/dashboard/products/${p.id}`)}
+                    onClick={() => { if (rowResizingRef.current) return; router.push(`/dashboard/products/${p.id}`); }}
                     onMouseEnter={() => setHoveredRow(p.id)}
-                    onMouseLeave={() => setHoveredRow(null)}
-                    className="transition-colors cursor-pointer">
+                    onMouseLeave={(e) => { setHoveredRow(null); e.currentTarget.style.cursor = ''; }}
+                    onMouseMove={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      e.currentTarget.style.cursor = rect.bottom - e.clientY < 7 ? 'row-resize' : 'pointer';
+                    }}
+                    onMouseDown={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      if (rect.bottom - e.clientY < 7) onRowResizeMouseDown(e, p.id);
+                    }}
+                    className="transition-colors"
+                    style={{ height: rowHeights[p.id] ?? DEFAULT_ROW_HEIGHT }}>
                     {showCheckboxes && <td className="w-10 pl-4 py-1.5 border-b border-gray-50" style={{ position: 'sticky', left: 0, zIndex: 9, backgroundColor: rowBg }} onClick={(e) => e.stopPropagation()}>
                       <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleSelect(p.id)}
                         className="w-4 h-4 rounded border-gray-300 accent-blue-600 cursor-pointer" />
