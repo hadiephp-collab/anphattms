@@ -802,10 +802,10 @@ export default function PhieuThuPage() {
                           <div className="flex items-center h-full px-1" style={{ height: h }}>
                             <a href={laPhieuBanHang(tx) && tx.linkGoc && BAN_HANG_URL ? `${BAN_HANG_URL}${tx.linkGoc}` : `/dashboard/thu-chi/phieu-thu/${tx.id}`}
                               target={laPhieuBanHang(tx) ? 'anphat-ban-hang' : undefined}
-                              title={laPhieuBanHang(tx) ? 'Phiếu từ App Bán hàng (mã BH-…) — bấm để mở phiếu gốc; sửa / huỷ bên App Bán hàng' : undefined}
+                              title={laPhieuBanHang(tx) ? 'Phiếu từ App Bán hàng (cùng mã) — bấm để mở phiếu gốc; sửa / huỷ bên App Bán hàng' : undefined}
                               onClick={e => { if (rowResizingRef.current) e.preventDefault(); }}
-                              className="font-mono text-emerald-600 font-semibold hover:underline hover:text-emerald-700">
-                              {tx.code}
+                              className="font-mono text-emerald-600 font-semibold hover:underline hover:text-emerald-700 whitespace-nowrap">
+                              {tx.code}{laPhieuBanHang(tx) && <span className="ml-1 text-indigo-500 font-sans" aria-label="từ App Bán hàng">↗</span>}
                             </a>
                           </div>
                         </td>

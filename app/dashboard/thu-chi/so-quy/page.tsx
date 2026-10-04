@@ -222,7 +222,7 @@ function soQuyCellContent(col: ColKey, row: LedgerRow): React.ReactNode {
       return (
         <span className="inline-flex items-center gap-1.5">
           {laPhieuBanHang(row) && row.linkGoc && BAN_HANG_URL
-            ? <a href={`${BAN_HANG_URL}${row.linkGoc}`} target="anphat-ban-hang" title="Phiếu từ App Bán hàng — bấm để mở phiếu gốc" className="font-mono text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline whitespace-nowrap">{row.code}</a>
+            ? <a href={`${BAN_HANG_URL}${row.linkGoc}`} target="anphat-ban-hang" title="Phiếu từ App Bán hàng — bấm để mở phiếu gốc" className="font-mono text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline whitespace-nowrap">{row.code}<span className="ml-1 text-indigo-500 font-sans">↗</span></a>
             : <Link href={`/dashboard/thu-chi/${row.type === 'receipt' ? 'phieu-thu' : 'phieu-chi'}/${row.id}`}
                 className="font-mono text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline whitespace-nowrap">
                 {row.code}
