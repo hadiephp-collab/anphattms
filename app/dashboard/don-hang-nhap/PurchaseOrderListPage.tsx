@@ -124,6 +124,148 @@ function SortIcon({ col, sortBy, sortOrder }: { col: string; sortBy: string; sor
   return <span className="text-blue-500 ml-1">{sortOrder === 'ASC' ? '↑' : '↓'}</span>;
 }
 
+// ─── Column settings modal ────────────────────────────────────────────────────
+const PO_PIN_OPTIONS = [
+  { value: 0, label: 'Không ghim' },
+  { value: 1, label: '1' },
+  { value: 2, label: '2' },
+  { value: 3, label: '3' },
+];
+const PO_TEXT_COLS = new Set(['supplier', 'freightAgent', 'assignedTo', 'reference', 'notes']);
+type DisplayType = 'truncate' | 'clamp' | 'wrap';
+
+function ColSettingsModalPO({
+  allCols, visibleCols, colOrder, pinnedCount, displayTypes,
+  onSave, onClose,
+}: {
+  allCols: readonly { key: string; label: string }[];
+  visibleCols: ColKey[];
+  colOrder: ColKey[];
+  pinnedCount: number;
+  displayTypes: Partial<Record<ColKey, DisplayType>>;
+  onSave: (vis: ColKey[], ord: ColKey[], pin: number, dt: Partial<Record<ColKey, DisplayType>>) => void;
+  onClose: () => void;
+}) {
+  const [draftVis, setDraftVis]     = useState<ColKey[]>([...visibleCols]);
+  const [draftOrd, setDraftOrd]     = useState<ColKey[]>([...colOrder]);
+  const [draftPin, setDraftPin]     = useState(pinnedCount);
+  const [draftDT, setDraftDT]       = useState<Partial<Record<ColKey, DisplayType>>>({...displayTypes});
+  const [dragIdx, setDragIdx]       = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+
+  function toggle(key: ColKey) {
+    setDraftVis(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
+  }
+  function setDT(key: ColKey, dt: DisplayType) { setDraftDT(prev => ({...prev, [key]: dt})); }
+  function handleDragStart(e: React.DragEvent, idx: number) { e.dataTransfer.effectAllowed = 'move'; setDragIdx(idx); }
+  function handleDragOver(e: React.DragEvent, idx: number) { e.preventDefault(); if (dragOverIdx !== idx) setDragOverIdx(idx); }
+  function handleDrop(e: React.DragEvent, idx: number) {
+    e.preventDefault();
+    if (dragIdx === null || dragIdx === idx) { setDragIdx(null); setDragOverIdx(null); return; }
+    const next = [...draftOrd]; const [moved] = next.splice(dragIdx, 1); next.splice(idx, 0, moved);
+    setDraftOrd(next); setDragIdx(null); setDragOverIdx(null);
+  }
+  function handleDragEnd() { setDragIdx(null); setDragOverIdx(null); }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-xl w-[480px] max-h-[82vh] flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="px-5 py-4 border-b border-gray-100 flex items-start justify-between flex-shrink-0">
+          <div>
+            <h3 className="text-sm font-bold text-gray-900">Tuỳ chỉnh hiển thị</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Kéo thả để đổi thứ tự cột — tuỳ chọn được nhớ riêng cho tài khoản bạn.</p>
+          </div>
+          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+        {/* Pin selector */}
+        <div className="px-5 py-3 border-b border-gray-100 flex-shrink-0 flex items-center gap-3">
+          <span className="text-xs text-gray-500 font-medium whitespace-nowrap">Ghim cột đầu</span>
+          <div className="flex items-center rounded-md border border-gray-200 overflow-hidden">
+            {PO_PIN_OPTIONS.map((opt, i) => (
+              <button key={opt.value} onClick={() => setDraftPin(opt.value)}
+                className={['px-2.5 py-1.5 text-[11px] font-medium transition-colors leading-none', i > 0 ? 'border-l border-gray-200' : '', draftPin === opt.value ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'].join(' ')}>
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <span className="text-[11px] text-gray-400">cố định khi cuộn ngang</span>
+        </div>
+        {/* Fixed col */}
+        <div className="px-3 pt-3 flex-shrink-0">
+          <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed select-none">
+            <svg className="w-3.5 h-3.5 flex-shrink-0 text-gray-200" fill="currentColor" viewBox="0 0 16 16">
+              <circle cx="5.5" cy="4" r="1.2"/><circle cx="10.5" cy="4" r="1.2"/>
+              <circle cx="5.5" cy="8" r="1.2"/><circle cx="10.5" cy="8" r="1.2"/>
+              <circle cx="5.5" cy="12" r="1.2"/><circle cx="10.5" cy="12" r="1.2"/>
+            </svg>
+            <input type="checkbox" checked disabled className="w-4 h-4 accent-blue-600 rounded flex-shrink-0 cursor-not-allowed" />
+            <span className="text-sm text-gray-500 flex-1 leading-none">Mã đơn</span>
+            <span className="text-[10px] text-gray-300">(bắt buộc)</span>
+          </div>
+        </div>
+        {/* Draggable list */}
+        <div className="overflow-y-auto flex-1 px-3 py-2 space-y-1">
+          {draftOrd.map((key, idx) => {
+            const col = allCols.find(c => c.key === key);
+            if (!col) return null;
+            const isDragging = dragIdx === idx;
+            const isDragOver = dragOverIdx === idx && dragIdx !== idx;
+            const isVisible  = draftVis.includes(key);
+            const isPinned   = idx < draftPin;
+            const isText     = PO_TEXT_COLS.has(key);
+            const activeDT   = draftDT[key as ColKey] ?? 'truncate';
+            return (
+              <div key={key} draggable
+                onDragStart={(e) => handleDragStart(e, idx)}
+                onDragOver={(e) => handleDragOver(e, idx)}
+                onDrop={(e) => handleDrop(e, idx)}
+                onDragEnd={handleDragEnd}
+                className={[
+                  'flex items-center gap-2.5 px-3 py-2.5 rounded-lg border transition-all select-none cursor-grab active:cursor-grabbing',
+                  isDragOver ? 'border-blue-400 bg-blue-50 shadow-sm' : isPinned ? 'border-amber-200 bg-amber-50/40' : isVisible ? 'border-blue-100 bg-blue-50/40' : 'border-gray-100 bg-white',
+                  isDragging ? 'opacity-30 scale-95' : '',
+                ].join(' ')}>
+                <svg className="w-3.5 h-3.5 flex-shrink-0 text-gray-300" fill="currentColor" viewBox="0 0 16 16">
+                  <circle cx="5.5" cy="4" r="1.2"/><circle cx="10.5" cy="4" r="1.2"/>
+                  <circle cx="5.5" cy="8" r="1.2"/><circle cx="10.5" cy="8" r="1.2"/>
+                  <circle cx="5.5" cy="12" r="1.2"/><circle cx="10.5" cy="12" r="1.2"/>
+                </svg>
+                <input type="checkbox" checked={isVisible} onChange={() => toggle(key as ColKey)}
+                  className="w-4 h-4 accent-blue-600 rounded flex-shrink-0 cursor-pointer" />
+                <span className="text-sm text-gray-700 font-medium flex-1 leading-none">{col.label}</span>
+                {isText && (
+                  <div className="flex items-center rounded-md border border-gray-200 overflow-hidden flex-shrink-0" onClick={e => e.stopPropagation()}>
+                    {(['truncate', 'clamp', 'wrap'] as const).map((dt, i) => (
+                      <button key={dt} onClick={() => setDT(key as ColKey, dt)}
+                        className={['px-1.5 py-0.5 text-[10px] font-medium transition-colors leading-none', i > 0 ? 'border-l border-gray-200' : '', activeDT === dt ? 'bg-blue-600 text-white' : 'bg-white text-gray-400 hover:bg-gray-50'].join(' ')}>
+                        {['Cắt', '2 dòng', 'Đầy đủ'][i]}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        {/* Footer */}
+        <div className="px-5 py-3.5 border-t border-gray-100 flex items-center justify-between flex-shrink-0">
+          <button onClick={() => { setDraftVis([...DEFAULT_VISIBLE]); setDraftOrd(ALL_COLUMNS.map(c => c.key) as ColKey[]); setDraftPin(0); setDraftDT({}); }}
+            className="text-xs text-gray-400 hover:text-gray-600 font-medium transition">Quay về mặc định</button>
+          <div className="flex gap-2">
+            <button onClick={onClose} className="px-4 py-1.5 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition">Thoát</button>
+            <button onClick={() => onSave(draftVis, draftOrd, draftPin, draftDT)}
+              className="px-4 py-1.5 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition">Lưu</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Modal wrapper ────────────────────────────────────────────────────────────
 function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
   return (
@@ -198,9 +340,15 @@ export default function PurchaseOrderListPage({
     try { const s = localStorage.getItem(COL_STORAGE_KEY + '-ord'); if (s) return JSON.parse(s); } catch { /**/ }
     return ALL_COLUMNS.map(c => c.key);
   });
+  const [pinnedCount, setPinnedCount] = useState<number>(() => {
+    try { const s = localStorage.getItem(COL_STORAGE_KEY + '-pin'); if (s) return JSON.parse(s); } catch { /**/ }
+    return 0;
+  });
+  const [displayTypes, setDisplayTypes] = useState<Partial<Record<ColKey, DisplayType>>>(() => {
+    try { const s = localStorage.getItem(COL_STORAGE_KEY + '-dt'); if (s) return JSON.parse(s); } catch { /**/ }
+    return {};
+  });
   const [showColModal, setShowColModal] = useState(false);
-  const [dragKey, setDragKey]       = useState<ColKey | null>(null);
-  const [dragOverKey, setDragOverKey] = useState<ColKey | null>(null);
 
   const dateDropRef = useRef<HTMLDivElement>(null);
 
@@ -357,28 +505,14 @@ export default function PurchaseOrderListPage({
   }
 
   // ─ Column manager helpers ─
-  function saveColSettings(vis: ColKey[], ord: ColKey[]) {
+  function saveColSettings(vis: ColKey[], ord: ColKey[], pin: number, dt: Partial<Record<ColKey, DisplayType>>) {
     try {
       localStorage.setItem(COL_STORAGE_KEY + '-vis', JSON.stringify(vis));
       localStorage.setItem(COL_STORAGE_KEY + '-ord', JSON.stringify(ord));
+      localStorage.setItem(COL_STORAGE_KEY + '-pin', JSON.stringify(pin));
+      localStorage.setItem(COL_STORAGE_KEY + '-dt', JSON.stringify(dt));
     } catch { /**/ }
-    setVisibleCols(vis); setColOrder(ord);
-  }
-
-  function toggleCol(key: ColKey) {
-    const next = visibleCols.includes(key) ? visibleCols.filter(k => k !== key) : [...visibleCols, key];
-    saveColSettings(next, colOrder);
-  }
-
-  function handleDragStart(key: ColKey) { setDragKey(key); }
-  function handleDragOver(e: React.DragEvent, key: ColKey) { e.preventDefault(); setDragOverKey(key); }
-  function handleDrop(key: ColKey) {
-    if (!dragKey || dragKey === key) { setDragKey(null); setDragOverKey(null); return; }
-    const ord = [...colOrder];
-    const from = ord.indexOf(dragKey); const to = ord.indexOf(key);
-    ord.splice(from, 1); ord.splice(to, 0, dragKey);
-    saveColSettings(visibleCols, ord);
-    setDragKey(null); setDragOverKey(null);
+    setVisibleCols(vis); setColOrder(ord); setPinnedCount(pin); setDisplayTypes(dt);
   }
 
   // ─ Derived ─
@@ -405,9 +539,9 @@ export default function PurchaseOrderListPage({
       case 'date':          return <td key={key} className="px-4 py-3 text-gray-600 whitespace-nowrap">{fmtDate(po.date)}</td>;
       case 'expectedDate':  return <td key={key} className="px-4 py-3 text-gray-600 whitespace-nowrap">{fmtDate(po.expectedDeliveryDate)}</td>;
       case 'receivedDate':  return <td key={key} className="px-4 py-3 whitespace-nowrap">{po.receivedDate ? <span className="text-emerald-600 font-medium">{fmtDate(po.receivedDate)}</span> : <span className="text-gray-300">—</span>}</td>;
-      case 'supplier':      return <td key={key} className="px-4 py-3"><div className="font-medium text-gray-800 truncate max-w-[160px]">{po.supplier?.name ?? <span className="text-gray-300">—</span>}</div></td>;
-      case 'freightAgent':  return <td key={key} className="px-4 py-3"><div className="text-amber-700 truncate max-w-[120px]">{po.freightAgent?.name ?? <span className="text-gray-300">—</span>}</div></td>;
-      case 'assignedTo':    return <td key={key} className="px-4 py-3 text-gray-600">{po.assignedTo?.fullName ?? po.assignedTo?.username ?? <span className="text-gray-300">—</span>}</td>;
+      case 'supplier':      { const dt = displayTypes['supplier'] ?? 'truncate'; return <td key={key} className="px-4 py-3"><div className={`font-medium text-gray-800 max-w-[160px] ${dt === 'truncate' ? 'truncate' : dt === 'clamp' ? 'line-clamp-2' : 'break-words whitespace-normal'}`}>{po.supplier?.name ?? <span className="text-gray-300">—</span>}</div></td>; }
+      case 'freightAgent':  { const dt = displayTypes['freightAgent'] ?? 'truncate'; return <td key={key} className="px-4 py-3"><div className={`text-amber-700 max-w-[120px] ${dt === 'truncate' ? 'truncate' : dt === 'clamp' ? 'line-clamp-2' : 'break-words whitespace-normal'}`}>{po.freightAgent?.name ?? <span className="text-gray-300">—</span>}</div></td>; }
+      case 'assignedTo':    { const dt = displayTypes['assignedTo'] ?? 'truncate'; const v = po.assignedTo?.fullName ?? po.assignedTo?.username; return <td key={key} className="px-4 py-3"><span className={`text-gray-600 ${dt === 'truncate' ? 'block truncate max-w-[120px]' : dt === 'clamp' ? 'line-clamp-2' : ''}`}>{v ?? <span className="text-gray-300">—</span>}</span></td>; }
       case 'orderType':     return <td key={key} className="px-4 py-3 text-center"><span className={`text-xs px-2 py-0.5 rounded-full ${po.orderType === 'import' ? 'bg-purple-50 text-purple-600' : 'bg-gray-50 text-gray-500'}`}>{po.orderType === 'import' ? 'Nhập khẩu' : 'Trong nước'}</span></td>;
       case 'totalAmountVnd':return <td key={key} className="px-4 py-3 text-right font-medium text-gray-800">{fmtMoney(po.totalAmountVnd)}</td>;
       case 'paidAmountVnd': return <td key={key} className="px-4 py-3 text-right text-emerald-600 font-medium">{Number(po.paidAmountVnd) > 0 ? fmtMoney(po.paidAmountVnd) : <span className="text-gray-300">—</span>}</td>;
@@ -431,9 +565,9 @@ export default function PurchaseOrderListPage({
       case 'status':        return <td key={key} className="px-4 py-3 text-center"><span className={`text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_STYLE[po.status]}`}>{STATUS_LABEL[po.status]}</span></td>;
       case 'paymentStatus': return <td key={key} className="px-4 py-3 text-center"><span className={`text-xs px-2.5 py-1 rounded-full font-medium ${PAYMENT_STATUS_STYLE[po.paymentStatus]}`}>{PAYMENT_STATUS_LABEL[po.paymentStatus]}</span></td>;
       case 'currency':      return <td key={key} className="px-4 py-3 text-center text-sm text-gray-600">{CURRENCY_LABEL[po.currency] ?? po.currency}</td>;
-      case 'reference':     return <td key={key} className="px-4 py-3 text-sm text-gray-500 font-mono">{po.reference ?? <span className="text-gray-300">—</span>}</td>;
+      case 'reference':     { const dt = displayTypes['reference'] ?? 'truncate'; return <td key={key} className="px-4 py-3 text-sm text-gray-500 font-mono"><span className={dt === 'truncate' ? 'block truncate max-w-[140px]' : dt === 'clamp' ? 'line-clamp-2' : 'break-all'}>{po.reference ?? <span className="text-gray-300">—</span>}</span></td>; }
       case 'tags':          return <td key={key} className="px-4 py-3"><div className="flex flex-wrap gap-1">{po.tags ? po.tags.split(',').map(t => <span key={t} className="text-[11px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full border border-blue-100">{t.trim()}</span>) : <span className="text-gray-300">—</span>}</div></td>;
-      case 'notes':         return <td key={key} className="px-4 py-3 text-sm text-gray-500 max-w-[200px] truncate">{po.notes ?? <span className="text-gray-300">—</span>}</td>;
+      case 'notes':         { const dt = displayTypes['notes'] ?? 'truncate'; return <td key={key} className="px-4 py-3 text-sm text-gray-500 max-w-[200px]"><span className={dt === 'truncate' ? 'block truncate' : dt === 'clamp' ? 'line-clamp-2' : 'whitespace-normal break-words'}>{po.notes ?? <span className="text-gray-300">—</span>}</span></td>; }
       case 'createdAt':     return <td key={key} className="px-4 py-3 text-sm text-gray-400 whitespace-nowrap">{fmtDate(po.createdAt)}</td>;
       default:              return <td key={key} />;
     }
@@ -712,57 +846,15 @@ export default function PurchaseOrderListPage({
 
       {/* Column manager modal */}
       {showColModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h2 className="text-base font-bold text-gray-800">Điều chỉnh cột hiển thị</h2>
-              <button onClick={() => setShowColModal(false)} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-            <div className="grid grid-cols-2 divide-x divide-gray-100 min-h-[360px]">
-              {/* Left: toggle visibility */}
-              <div className="p-5 overflow-y-auto max-h-[420px]">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Hiển thị / Ẩn</p>
-                <div className="text-xs text-gray-400 mb-2 border-b pb-2 border-gray-100">Mã đơn (cố định)</div>
-                {ALL_COLUMNS.filter(c => fixedOrderType ? c.key !== 'orderType' : true).map(col => (
-                  <label key={col.key} className="flex items-center gap-2 py-1.5 cursor-pointer hover:text-gray-700 text-sm text-gray-600">
-                    <input type="checkbox" checked={visibleCols.includes(col.key)} onChange={() => toggleCol(col.key)} className="w-4 h-4 rounded border-gray-300 text-blue-600" />
-                    {col.label}
-                  </label>
-                ))}
-              </div>
-              {/* Right: drag to reorder */}
-              <div className="p-5 overflow-y-auto max-h-[420px]">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Thứ tự cột (kéo thả)</p>
-                <div className="text-xs text-gray-400 mb-1 border-b pb-2 border-gray-100">Mã đơn (đầu tiên)</div>
-                {colOrder.filter(k => fixedOrderType ? k !== 'orderType' : true).map(key => {
-                  const col = ALL_COLUMNS.find(c => c.key === key);
-                  if (!col) return null;
-                  return (
-                    <div key={key} draggable
-                      onDragStart={() => handleDragStart(key)}
-                      onDragOver={e => handleDragOver(e, key)}
-                      onDrop={() => handleDrop(key)}
-                      className={`flex items-center gap-2 py-2 px-2 rounded-lg cursor-grab text-sm transition ${dragOverKey === key ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50 text-gray-600'} ${!visibleCols.includes(key) ? 'opacity-40' : ''}`}>
-                      <svg className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
-                      {col.label}
-                    </div>
-                  );
-                })}
-                <div className="text-xs text-gray-400 mt-2 pt-2 border-t border-gray-100">(Thao tác — cuối)</div>
-              </div>
-            </div>
-            <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50">
-              <button onClick={() => { saveColSettings(DEFAULT_VISIBLE, ALL_COLUMNS.map(c => c.key)); }}
-                className="text-sm text-gray-500 hover:text-gray-700">Quay về mặc định</button>
-              <div className="flex gap-2">
-                <button onClick={() => setShowColModal(false)} className="px-4 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">Thoát</button>
-                <button onClick={() => setShowColModal(false)} className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700">Lưu</button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ColSettingsModalPO
+          allCols={ALL_COLUMNS.filter(c => fixedOrderType ? c.key !== 'orderType' : true)}
+          visibleCols={visibleCols}
+          colOrder={colOrder.filter(k => fixedOrderType ? k !== 'orderType' : true) as ColKey[]}
+          pinnedCount={pinnedCount}
+          displayTypes={displayTypes}
+          onClose={() => setShowColModal(false)}
+          onSave={(vis, ord, pin, dt) => { saveColSettings(vis, ord, pin, dt); setShowColModal(false); }}
+        />
       )}
     </div>
   );

@@ -12,8 +12,9 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 const PAYER_GROUPS = [
   { value: '', label: '— Chọn nhóm —' },
+  // Khách hàng + NCC trong nước: thu / chi ở App Bán hàng (giữ công nợ) — TMS chỉ còn NCC nước ngoài
   { value: 'customer', label: 'Khách hàng' },
-  { value: 'supplier', label: 'Nhà cung cấp' },
+  { value: 'supplier', label: 'Nhà cung cấp nước ngoài' },
   { value: 'employee', label: 'Nhân viên' },
   { value: 'other', label: 'Đối tượng khác' },
 ];
@@ -74,7 +75,7 @@ export default function TxFormPage({ type, txId }: Props) {
   });
 
   const [ptttOptions, setPtttOptions] = useState<{ code: string; name: string }[]>(PTTT_FALLBACK);
-  const [bankAccounts, setBankAccounts] = useState<{ id: number; code: string; bankName: string; accountNumber: string; accountHolder: string }[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<{ id: number; code: string; bankName: string; accountNumber: string; accountHolder: string; laCaNhan?: boolean }[]>([]);
   const [partners, setPartners] = useState<{ id: number; name: string; code?: string; type?: string }[]>([]);
   const [groups, setGroups] = useState<{ id: number; name: string; affectsBusinessResult: boolean; isActive?: boolean }[]>([]);
   const [branches, setBranches] = useState<{ id: number; name: string }[]>([]);
@@ -87,6 +88,12 @@ export default function TxFormPage({ type, txId }: Props) {
   const [uploading, setUploading] = useState(false);
 
   const set = (k: string, v: string | boolean) => setForm(f => ({ ...f, [k]: v }));
+  // Mở từ màn chọn loại (VD "Chi NCC nước ngoài" → ?doiTuong=supplier): chọn sẵn nhóm đối tượng
+  useEffect(() => {
+    if (txId) return;
+    const dt = new URLSearchParams(window.location.search).get('doiTuong');
+    if (dt && ['supplier', 'employee', 'other'].includes(dt)) setForm(f => ({ ...f, payerType: dt }));
+  }, [txId]);
 
   // Search đối tác — debounce 300ms, gọi API thay vì load tất cả
   const partnerSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -95,7 +102,7 @@ export default function TxFormPage({ type, txId }: Props) {
     partnerSearchTimer.current = setTimeout(() => {
       const params: Record<string, string> = { limit: '20' };
       if (form.payerType === 'customer') params.type = 'customer';
-      if (form.payerType === 'supplier') params.type = 'supplier';
+      if (form.payerType === 'supplier') { params.type = 'supplier'; params.supplierType = 'foreign'; }
       if (partnerSearch) params.search = partnerSearch;
       partnersApi.getAll(params).then((r: any) => setPartners(r.data || r || [])).catch(() => {});
     }, 300);
@@ -276,8 +283,10 @@ export default function TxFormPage({ type, txId }: Props) {
                   <div>
                     <label className={labelCls}>Nhóm người {isReceipt ? 'nộp' : 'nhận'} <span className="text-red-500">*</span></label>
                     <select value={form.payerType} onChange={e => { set('payerType', e.target.value); set('partnerId', ''); setPartnerSearch(''); }} className={inputCls}>
-                      {PAYER_GROUPS.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
+                      {/* 'Khách hàng' chỉ còn để xem / sửa phiếu cũ — phiếu mới của khách làm ở App Bán hàng */}
+                      {PAYER_GROUPS.filter(g => g.value !== 'customer' || form.payerType === 'customer').map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
                     </select>
+                    {!txId && <p className="text-[11px] text-gray-400 mt-1">Khách hàng / NCC trong nước: tạo phiếu ở App Bán hàng (nút Tạo phiếu → chọn loại).</p>}
                   </div>
                   <div>
                     <label className={labelCls}>Đối tác / Tên người {isReceipt ? 'nộp' : 'nhận'} <span className="text-red-500">*</span></label>
@@ -353,7 +362,7 @@ export default function TxFormPage({ type, txId }: Props) {
                         <option value="">— Chọn tài khoản —</option>
                         {bankAccounts.map(b => (
                           <option key={b.id} value={String(b.id)}>
-                            {b.bankName} — {b.accountNumber} ({b.accountHolder})
+                            {b.bankName} — {b.accountNumber} ({b.accountHolder}){b.laCaNhan ? ' · TK cá nhân' : ''}
                           </option>
                         ))}
                       </select>

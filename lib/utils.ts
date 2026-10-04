@@ -4,12 +4,12 @@ export function localDateStr(d: Date = new Date()): string {
 }
 
 export function fmtMoney(n: number) {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(Math.abs(n));
+  return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(Math.abs(n));
 }
 
 export function fmtDate(s: string | null | undefined) {
   if (!s) return '—';
-  return new Date(s).toLocaleDateString('vi-VN');
+  return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(s));
 }
 
 export function getPresetDates(preset: string): { from: string; to: string } {

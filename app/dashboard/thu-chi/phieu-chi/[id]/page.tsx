@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { BAN_HANG_URL, laPhieuBanHang } from '@/lib/ban-hang';
 import { useParams, useRouter } from 'next/navigation';
 import { transactionsApi, PM_LABEL } from '@/lib/transactions';
 
@@ -14,6 +15,8 @@ interface Tx {
   affectsBusinessResult: boolean;
   payerType: string | null; reference: string | null;
   partner?: { id: number; name: string; code?: string } | null;
+  /** phiếu từ App Bán hàng: tên khách / NCC chụp lúc đồng bộ */
+  nguon?: string; doiTuongTen?: string | null; linkGoc?: string | null;
   branchEntity?: { id: number; name: string } | null;
   createdBy?: { id: number; fullName: string } | null;
   order?: { id: number; code: string } | null;
@@ -103,7 +106,14 @@ export default function PhieuChiDetailPage() {
             : <span className="px-2 py-0.5 text-xs font-semibold bg-emerald-100 text-emerald-700 rounded-full">Hoàn thành</span>}
         </div>
         <div className="flex items-center gap-2">
-          {!tx.isDeleted && (
+          {laPhieuBanHang(tx as { nguon?: string }) && (
+            <a href={BAN_HANG_URL && (tx as { linkGoc?: string }).linkGoc ? `${BAN_HANG_URL}${(tx as { linkGoc?: string }).linkGoc}` : '#'} target="anphat-ban-hang"
+              title="Phiếu đến từ App Bán hàng — sửa / huỷ bên đó, TMS tự cập nhật"
+              className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium border border-indigo-200 text-indigo-700 bg-indigo-50 rounded-xl hover:bg-indigo-100 transition">
+              Phiếu từ App Bán hàng — mở phiếu gốc ↗
+            </a>
+          )}
+          {!tx.isDeleted && !laPhieuBanHang(tx as { nguon?: string }) && (
             <>
               <Link href={`/dashboard/thu-chi/phieu-chi/${tx.id}/chinh-sua`}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition">
@@ -139,7 +149,7 @@ export default function PhieuChiDetailPage() {
                 <InfoRow label="Tên người nhận"
                   value={tx.partner
                     ? <span className="text-red-600 font-medium">{tx.partner.name}</span>
-                    : '—'} />
+                    : tx.doiTuongTen ? <span className="text-red-600 font-medium">{tx.doiTuongTen}</span> : '—'} />
                 <InfoRow label="Danh mục / Loại phiếu" value={tx.category || '—'} />
                 <InfoRow label="Mã phiếu" value={<span className="font-mono font-semibold">{tx.code}</span>} />
               </div>

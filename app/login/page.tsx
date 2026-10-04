@@ -29,40 +29,15 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex bg-gray-50">
-      {/* Left panel */}
-      <div className="hidden lg:flex flex-col justify-between w-1/2 bg-blue-600 p-12 text-white">
-        <div>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-xl font-bold">A</div>
-            <span className="text-xl font-bold">An Phát TMS</span>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <div className="w-full max-w-md">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center gap-2">
+            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white text-xl font-bold">A</div>
+            <span className="text-xl font-bold text-gray-800">An Phát TMS</span>
           </div>
         </div>
-        <div>
-          <h2 className="text-4xl font-bold leading-tight mb-4">
-            Quản lý vận hành<br />thông minh & hiệu quả
-          </h2>
-          <p className="text-blue-100 text-lg">
-            Hệ thống quản lý toàn diện cho doanh nghiệp An Phát — đơn hàng, kho, vận chuyển, tài chính.
-          </p>
-        </div>
-        <div className="flex gap-6 text-blue-100 text-sm">
-          <div><div className="text-2xl font-bold text-white">99%</div>Độ chính xác</div>
-          <div><div className="text-2xl font-bold text-white">24/7</div>Hoạt động</div>
-          <div><div className="text-2xl font-bold text-white">Real-time</div>Cập nhật</div>
-        </div>
-      </div>
-
-      {/* Right panel */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-md">
-          {/* Mobile logo */}
-          <div className="lg:hidden text-center mb-8">
-            <div className="inline-flex items-center gap-2">
-              <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white text-xl font-bold">A</div>
-              <span className="text-xl font-bold text-gray-800">An Phát TMS</span>
-            </div>
-          </div>
 
           <div className="mb-8">
             <h1 className="text-2xl font-bold text-gray-800">Đăng nhập</h1>
@@ -161,7 +136,6 @@ export default function LoginPage() {
           <p className="text-center text-xs text-gray-400 mt-8">
             © 2026 An Phát TMS. All rights reserved.
           </p>
-        </div>
       </div>
     </div>
   );

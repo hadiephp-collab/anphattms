@@ -95,6 +95,8 @@ const DEFAULT_COL_WIDTHS: Record<string,number> = {
 
 const STORAGE_KEY_PREFIX    = 'partners_col_order_v3_';
 const COL_WIDTHS_KEY_PREFIX = 'partners_col_widths_v3_';
+const ROW_HEIGHTS_KEY_PREFIX = 'partners_row_heights_v3_';
+const DEFAULT_ROW_HEIGHT     = 44;
 const NUM_EDIT_FIELDS       = new Set(['creditLimit','paymentTerm','rating']);
 
 // ── Data types ─────────────────────────────────────────────────────────────
@@ -209,20 +211,28 @@ function ProvinceSelect({ value, onChange, provinces }: { value:string[]; onChan
   );
 }
 
-// ── Column Settings Modal — centered modal, luôn hiện pin & display type ──
+// ── Pin options ─────────────────────────────────────────────────────────────
+const PIN_OPTIONS = [
+  { value: 0, label: 'Không ghim' },
+  { value: 1, label: '1' },
+  { value: 2, label: '2' },
+  { value: 3, label: '3' },
+];
+
+// ── Column Settings Modal ────────────────────────────────────────────────────
 function ColSettingsModal({ colOrder, onSave, onClose, defaultOrder }: {
   colOrder:ColItem[]; onSave:(o:ColItem[])=>void; onClose:()=>void; defaultOrder:ColItem[];
 }) {
-  const [draft, setDraft] = useState<ColItem[]>([...colOrder]);
-  const [dragIdx,     setDragIdx]     = useState<number|null>(null);
+  const [draft, setDraft]           = useState<ColItem[]>([...colOrder]);
+  const [dragIdx, setDragIdx]       = useState<number|null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number|null>(null);
+  const [pinnedCount, setPinnedCount] = useState(() => colOrder.filter(c=>c.pinned).length);
 
   function toggle(key:string){
     const def = ALL_COLS.find((c)=>c.key===key);
     if (def?.required) return;
     setDraft((p) => p.map((c) => c.key===key ? {...c, visible:!c.visible} : c));
   }
-  function setPin(key:string, pinned:boolean){ setDraft((p) => p.map((c) => c.key===key ? {...c,pinned} : c)); }
   function setDT(key:string, dt:'truncate'|'clamp'|'wrap'){ setDraft((p) => p.map((c) => c.key===key ? {...c,displayType:dt} : c)); }
 
   function handleDragStart(e:React.DragEvent, idx:number){ e.dataTransfer.effectAllowed='move'; setDragIdx(idx); }
@@ -235,38 +245,53 @@ function ColSettingsModal({ colOrder, onSave, onClose, defaultOrder }: {
   }
   function handleDragEnd(){ setDragIdx(null); setDragOverIdx(null); }
 
-  const visCount = draft.filter((c)=>c.visible).length;
+  function handleSave(){ onSave(draft.map((c, i) => ({...c, pinned: i < pinnedCount}))); }
+  function handleReset(){ setDraft([...defaultOrder]); setPinnedCount(0); }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose}/>
-      <div className="relative bg-white rounded-2xl shadow-xl w-[400px] max-h-[85vh] flex flex-col overflow-hidden" onClick={(e)=>e.stopPropagation()}>
+      <div className="relative bg-white rounded-2xl shadow-xl w-[480px] max-h-[85vh] flex flex-col overflow-hidden" onClick={(e)=>e.stopPropagation()}>
         {/* Header */}
         <div className="px-5 py-4 border-b border-gray-100 flex items-start justify-between flex-shrink-0">
           <div>
-            <h3 className="text-sm font-bold text-gray-900">Điều chỉnh cột hiển thị</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Kéo ⠿ để sắp xếp · {visCount} cột đang bật</p>
+            <h3 className="text-sm font-bold text-gray-900">Tuỳ chỉnh hiển thị</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Kéo thả để đổi thứ tự cột — tuỳ chọn được nhớ riêng cho tài khoản bạn.</p>
           </div>
           <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>
+        {/* Pin selector */}
+        <div className="px-5 py-3 border-b border-gray-100 flex-shrink-0 flex items-center gap-3">
+          <span className="text-xs text-gray-500 font-medium whitespace-nowrap">Ghim cột đầu</span>
+          <div className="flex items-center rounded-md border border-gray-200 overflow-hidden">
+            {PIN_OPTIONS.map((opt, i) => (
+              <button key={opt.value} onClick={() => setPinnedCount(opt.value)}
+                className={['px-2.5 py-1.5 text-[11px] font-medium transition-colors leading-none', i>0?'border-l border-gray-200':'', pinnedCount===opt.value?'bg-blue-600 text-white':'bg-white text-gray-500 hover:bg-gray-50'].join(' ')}>
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <span className="text-[11px] text-gray-400">cố định khi cuộn ngang</span>
+        </div>
         {/* List */}
         <div className="overflow-y-auto flex-1 px-3 py-3 space-y-1">
           {draft.map((col, idx) => {
             const def = ALL_COLS.find((c)=>c.key===col.key); if (!def) return null;
-            const isDragging  = dragIdx===idx;
-            const isDragOver  = dragOverIdx===idx && dragIdx!==idx;
-            const isText      = TEXT_DISPLAY_COLS.has(col.key);
+            const isDragging = dragIdx===idx;
+            const isDragOver = dragOverIdx===idx && dragIdx!==idx;
+            const isText     = TEXT_DISPLAY_COLS.has(col.key);
+            const isPinned   = idx < pinnedCount;
             return (
               <div key={col.key} draggable
                 onDragStart={(e)=>handleDragStart(e,idx)} onDragOver={(e)=>handleDragOver(e,idx)}
                 onDrop={(e)=>handleDrop(e,idx)} onDragEnd={handleDragEnd}
                 className={[
                   'flex items-center gap-2.5 px-3 py-2.5 rounded-lg border transition-all select-none cursor-grab active:cursor-grabbing',
-                  isDragOver  ? 'border-blue-400 bg-blue-50 shadow-sm' : col.visible ? 'border-blue-100 bg-blue-50/40' : 'border-gray-100 bg-white',
-                  isDragging  ? 'opacity-30 scale-95' : '',
+                  isDragOver ? 'border-blue-400 bg-blue-50 shadow-sm' : isPinned ? 'border-amber-200 bg-amber-50/40' : col.visible ? 'border-blue-100 bg-blue-50/40' : 'border-gray-100 bg-white',
+                  isDragging ? 'opacity-30 scale-95' : '',
                 ].join(' ')}>
-                {/* Drag handle — 6 dots */}
                 <svg className="w-3.5 h-3.5 flex-shrink-0 text-gray-300" fill="currentColor" viewBox="0 0 16 16">
                   <circle cx="5.5" cy="4" r="1.2"/><circle cx="10.5" cy="4" r="1.2"/>
                   <circle cx="5.5" cy="8" r="1.2"/><circle cx="10.5" cy="8" r="1.2"/>
@@ -275,16 +300,7 @@ function ColSettingsModal({ colOrder, onSave, onClose, defaultOrder }: {
                 <input type="checkbox" checked={col.visible} disabled={!!def.required} onChange={()=>toggle(col.key)}
                   className="w-4 h-4 accent-blue-600 rounded flex-shrink-0 cursor-pointer disabled:cursor-default"/>
                 <span className="text-sm text-gray-700 font-medium flex-1 leading-none">{def.label}</span>
-                {def.required && <span className="text-[10px] text-gray-300 flex-shrink-0">bắt buộc</span>}
-                {/* Pin button — luôn hiện */}
-                <button onClick={(e)=>{ e.stopPropagation(); setPin(col.key, !col.pinned); }}
-                  title={col.pinned ? 'Bỏ ghim cột' : 'Ghim cột (cố định khi kéo ngang)'}
-                  className={`flex-shrink-0 w-6 h-6 flex items-center justify-center rounded transition-colors ${col.pinned?'text-blue-500 bg-blue-50':'text-gray-400 hover:text-blue-500 hover:bg-blue-50'}`}>
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M16 9V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v5c0 1.66-1.34 3-3 3v2h5.97v7l1 1 1-1v-7H19v-2c-1.66 0-3-1.34-3-3z"/>
-                  </svg>
-                </button>
-                {/* Display type — chỉ text cols, luôn hiện */}
+                {def.required && <span className="text-[10px] text-gray-300 flex-shrink-0">(bắt buộc)</span>}
                 {isText && (
                   <div className="flex items-center rounded-md border border-gray-200 overflow-hidden flex-shrink-0" onClick={(e)=>e.stopPropagation()}>
                     {(['truncate','clamp','wrap'] as const).map((dt, i) => {
@@ -305,10 +321,10 @@ function ColSettingsModal({ colOrder, onSave, onClose, defaultOrder }: {
         </div>
         {/* Footer */}
         <div className="px-5 py-3.5 border-t border-gray-100 flex items-center justify-between flex-shrink-0">
-          <button onClick={()=>setDraft([...defaultOrder])} className="text-xs text-gray-400 hover:text-gray-600 font-medium transition">Khôi phục mặc định</button>
+          <button onClick={handleReset} className="text-xs text-gray-400 hover:text-gray-600 font-medium transition">Quay về mặc định</button>
           <div className="flex gap-2">
-            <button onClick={onClose} className="px-4 py-1.5 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition">Hủy</button>
-            <button onClick={()=>onSave(draft)} className="px-4 py-1.5 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition">Lưu</button>
+            <button onClick={onClose} className="px-4 py-1.5 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition">Thoát</button>
+            <button onClick={handleSave} className="px-4 py-1.5 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition">Lưu</button>
           </div>
         </div>
       </div>
@@ -327,7 +343,7 @@ export default function PartnersListPage({ fixedTypeGroup }: { fixedTypeGroup?:'
   const [total,          setTotal]          = useState(0);
   const [page,           setPage]           = useState(1);
   const [totalPages,     setTotalPages]     = useState(1);
-  const [limit,          setLimit]          = useState<20|50|100>(20);
+  const [limit,          setLimit]          = useState<10|15|30|50|100>(30);
   const [loading,        setLoading]        = useState(true);
   const [selectedIds,    setSelectedIds]    = useState<Set<number>>(new Set());
   const [showBulkMenu,   setShowBulkMenu]   = useState(false);
@@ -353,10 +369,15 @@ export default function PartnersListPage({ fixedTypeGroup }: { fixedTypeGroup?:'
     try { const s = localStorage.getItem(getWidthsKey(ctx)); if (s) return { ...DEFAULT_COL_WIDTHS, ...JSON.parse(s) }; } catch {}
     return { ...DEFAULT_COL_WIDTHS };
   });
+  const [rowHeights, setRowHeights] = useState<Record<number,number>>(() => {
+    try { const s = localStorage.getItem(ROW_HEIGHTS_KEY_PREFIX+ctx); if (s) return JSON.parse(s); } catch {}
+    return {};
+  });
 
   const tableScrollRef = useRef<HTMLDivElement>(null);
   const savedScrollLeft = useRef(0);
   const bulkRef = useRef<HTMLDivElement>(null);
+  const rowResizingRef = useRef(false);
 
   useEffect(() => { setColOrder(loadColOrder(ctx)); }, [ctx]);
 
@@ -382,6 +403,16 @@ export default function PartnersListPage({ fixedTypeGroup }: { fixedTypeGroup?:'
     document.body.style.cursor='col-resize'; document.body.style.userSelect='none';
     function onMove(ev:MouseEvent){ const w=Math.max(60,startW+ev.clientX-startX); setColWidths((p)=>{ const n={...p,[colKey]:w}; try{localStorage.setItem(getWidthsKey(ctx),JSON.stringify(n));}catch{} return n; }); }
     function onUp(){ document.body.style.cursor=''; document.body.style.userSelect=''; document.removeEventListener('mousemove',onMove); document.removeEventListener('mouseup',onUp); }
+    document.addEventListener('mousemove',onMove); document.addEventListener('mouseup',onUp);
+  }
+
+  function onRowResizeMouseDown(e:React.MouseEvent, partnerId:number) {
+    e.preventDefault(); e.stopPropagation();
+    rowResizingRef.current = true;
+    const startY = e.clientY; const startH = rowHeights[partnerId] ?? DEFAULT_ROW_HEIGHT;
+    document.body.style.cursor='row-resize'; document.body.style.userSelect='none';
+    function onMove(ev:MouseEvent){ const h=Math.max(28,startH+ev.clientY-startY); setRowHeights((p)=>{ const n={...p,[partnerId]:h}; try{localStorage.setItem(ROW_HEIGHTS_KEY_PREFIX+ctx,JSON.stringify(n));}catch{} return n; }); }
+    function onUp(){ document.body.style.cursor=''; document.body.style.userSelect=''; document.removeEventListener('mousemove',onMove); document.removeEventListener('mouseup',onUp); setTimeout(()=>{ rowResizingRef.current=false; },50); }
     document.addEventListener('mousemove',onMove); document.addEventListener('mouseup',onUp);
   }
 
@@ -501,9 +532,9 @@ export default function PartnersListPage({ fixedTypeGroup }: { fixedTypeGroup?:'
     return <div className="flex items-center gap-0.5 group/ec"><span className={`text-sm ${cls} truncate flex-1`} title={val}>{val}</span>{pb}</div>;
   }
 
-  function numContent(field:string, val:number|null|undefined, id:number, display:(v:number)=>string, cls='text-gray-700') {
-    if (editingCell?.id===id && editingCell?.field===field) return <input autoFocus type="number" value={editingCell.value} onChange={(e)=>setEditingCell({...editingCell,value:e.target.value})} onKeyDown={(e)=>{if(e.key==='Enter')saveEdit();if(e.key==='Escape')setEditingCell(null);}} onBlur={saveEdit} className="w-full text-sm border border-blue-400 rounded-md px-2 py-1 outline-none focus:ring-1 focus:ring-blue-400 bg-white" onClick={(e)=>e.stopPropagation()}/>;
-    return <div className="flex items-center gap-0.5 group/ec"><span className={`text-sm ${cls} flex-1`}>{val!=null?display(val):<span className="text-gray-300">—</span>}</span><PencilBtn id={id} field={field} val={val!=null?String(val):''}/></div>;
+  function numContent(field:string, val:number|null|undefined, id:number, display:(v:number)=>string, cls='text-gray-600') {
+    if (editingCell?.id===id && editingCell?.field===field) return <input autoFocus type="number" value={editingCell.value} onChange={(e)=>setEditingCell({...editingCell,value:e.target.value})} onKeyDown={(e)=>{if(e.key==='Enter')saveEdit();if(e.key==='Escape')setEditingCell(null);}} onBlur={saveEdit} className="w-full text-sm border border-blue-400 rounded-md px-2 py-1 outline-none focus:ring-1 focus:ring-blue-400 bg-white text-right" onClick={(e)=>e.stopPropagation()}/>;
+    return <div className="flex items-center justify-end gap-0.5 group/ec"><PencilBtn id={id} field={field} val={val!=null?String(val):''}/>  <span className={`text-sm ${cls}`}>{val!=null?display(val):<span className="text-gray-300">—</span>}</span></div>;
   }
 
   // ── renderCell — tạo <td> với đầy đủ style sticky + width ───────────
@@ -561,13 +592,13 @@ export default function PartnersListPage({ fixedTypeGroup }: { fixedTypeGroup?:'
       </td>;
 
       // Số tiền: Number() để xử lý TypeORM decimal string, toLocaleString('vi-VN') cho dấu chấm
-      case 'totalDebt':    return <td key={key} style={style} className={tdCls}>{numContent('totalDebt',Number(p.totalDebt)||null,p.id,(v)=>fmtMoney(v),Number(p.totalDebt)>0?'text-red-600 font-semibold':'text-gray-400')}</td>;
-      case 'supplierDebt': return <td key={key} style={style} className={tdCls}>{numContent('supplierDebt',Number(p.supplierDebt??0)||null,p.id,(v)=>fmtMoney(v),Number(p.supplierDebt??0)>0?'text-orange-600 font-semibold':'text-gray-400')}</td>;
+      case 'totalDebt':    return <td key={key} style={style} className={tdCls}>{numContent('totalDebt',Number(p.totalDebt)||null,p.id,(v)=>fmtMoney(v),Number(p.totalDebt)>0?'text-red-600':'text-gray-400')}</td>;
+      case 'supplierDebt': return <td key={key} style={style} className={tdCls}>{numContent('supplierDebt',Number(p.supplierDebt??0)||null,p.id,(v)=>fmtMoney(v),Number(p.supplierDebt??0)>0?'text-orange-600':'text-gray-400')}</td>;
       case 'creditLimit':  return <td key={key} style={style} className={tdCls}>{numContent('creditLimit',Number(p.creditLimit)||null,p.id,(v)=>fmtNum(v))}</td>;
       case 'paymentTerm':  return <td key={key} style={style} className={tdCls}>{numContent('paymentTerm',Number(p.paymentTerm)||null,p.id,(v)=>`${v} ngày`)}</td>;
-      case 'totalOrders':  return <td key={key} style={style} className={tdCls}><span className="text-sm text-gray-700 font-medium">{Number(p.totalOrders)??0}</span></td>;
-      case 'totalRevenue': return <td key={key} style={style} className={tdCls}><span className={`text-sm font-semibold ${Number(p.totalRevenue)>0?'text-emerald-600':'text-gray-400'}`}>{Number(p.totalRevenue)>0?fmtNum(p.totalRevenue):'—'}</span></td>;
-      case 'totalPurchase': return <td key={key} style={style} className={tdCls}><span className={`text-sm font-semibold ${Number(p.totalPurchase??0)>0?'text-violet-600':'text-gray-400'}`}>{Number(p.totalPurchase??0)>0?fmtNum(p.totalPurchase??0):'—'}</span></td>;
+      case 'totalOrders':  return <td key={key} style={style} className={`${tdCls} text-right`}><span className="text-sm text-gray-600">{Number(p.totalOrders)??0}</span></td>;
+      case 'totalRevenue': return <td key={key} style={style} className={`${tdCls} text-right`}><span className={`text-sm ${Number(p.totalRevenue)>0?'text-emerald-600':'text-gray-400'}`}>{Number(p.totalRevenue)>0?fmtNum(p.totalRevenue):'—'}</span></td>;
+      case 'totalPurchase': return <td key={key} style={style} className={`${tdCls} text-right`}><span className={`text-sm ${Number(p.totalPurchase??0)>0?'text-violet-600':'text-gray-400'}`}>{Number(p.totalPurchase??0)>0?fmtNum(p.totalPurchase??0):'—'}</span></td>;
 
       case 'contactPerson':    return <td key={key} style={style} className={tdCls}>{textContent('contactPerson',p.contactPerson,p.id)}</td>;
       case 'address':          return <td key={key} style={style} className={tdCls}>{textContent('address',p.address,p.id,'text-gray-600',true)}</td>;
@@ -796,10 +827,13 @@ export default function PartnersListPage({ fixedTypeGroup }: { fixedTypeGroup?:'
                     const rowBg  = isSel?'#dbeafe':isHigh?'#fefce8':isHov?'#eff6ff':'#ffffff';
                     return (
                       <tr key={p.id}
-                        className="border-b border-gray-50 cursor-pointer transition-colors"
+                        className="border-b border-gray-50 transition-colors"
+                        style={{ height: rowHeights[p.id] ?? DEFAULT_ROW_HEIGHT }}
                         onMouseEnter={()=>setHoveredId(p.id)}
-                        onMouseLeave={()=>setHoveredId(null)}
-                        onClick={()=>router.push(fixedTypeGroup==='freight'?`/dashboard/partners/don-vi-van-chuyen/${p.id}`:`/dashboard/partners/${p.id}`)}
+                        onMouseLeave={(e)=>{ setHoveredId(null); e.currentTarget.style.cursor=''; }}
+                        onMouseMove={(e)=>{ const rect=e.currentTarget.getBoundingClientRect(); e.currentTarget.style.cursor=rect.bottom-e.clientY<7?'row-resize':'pointer'; }}
+                        onMouseDown={(e)=>{ const rect=e.currentTarget.getBoundingClientRect(); if (rect.bottom-e.clientY<7) onRowResizeMouseDown(e,p.id); }}
+                        onClick={()=>{ if (rowResizingRef.current) return; router.push(fixedTypeGroup==='freight'?`/dashboard/partners/don-vi-van-chuyen/${p.id}`:`/dashboard/partners/${p.id}`); }}
                         onContextMenu={(e)=>{ e.preventDefault(); setHighlightId(highlightId===p.id?null:p.id); }}>
                         {showCheckboxes && <td className="w-10 pl-4 py-1.5 border-b border-gray-50"
                           style={{position:'sticky',left:0,zIndex:9,backgroundColor:rowBg}}
@@ -831,7 +865,7 @@ export default function PartnersListPage({ fixedTypeGroup }: { fixedTypeGroup?:'
           <div className="flex items-center gap-2 text-xs text-gray-400">
             <span>Hiển thị</span>
             <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
-              {([20,50,100] as const).map((n)=>(
+              {([10,15,30,50,100] as const).map((n)=>(
                 <button key={n} onClick={()=>{ setLimit(n); setPage(1); }}
                   className={`px-2.5 py-1 text-xs font-medium transition border-r border-gray-200 last:border-r-0 ${limit===n?'bg-blue-600 text-white':'text-gray-500 hover:bg-gray-50'}`}>{n}</button>
               ))}

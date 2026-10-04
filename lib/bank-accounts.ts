@@ -27,6 +27,8 @@ export interface BankAccount {
   soDuHienTai: number;
   isActive: boolean;
   isDefault: boolean;
+  /** tài khoản cá nhân (VD chủ DN trả NCC nước ngoài) */
+  laCaNhan?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -61,13 +63,13 @@ export const bankAccountsApi = {
   create: (data: {
     loaiTaiKhoan: string; tenTaiKhoan?: string;
     bankName?: string; accountNumber?: string; accountHolder?: string;
-    branch?: string; notes?: string; soDuDauKy?: number; isDefault?: boolean;
+    branch?: string; notes?: string; soDuDauKy?: number; isDefault?: boolean; laCaNhan?: boolean;
   }): Promise<BankAccount> =>
     authFetch('/bank-accounts', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: number, data: Partial<{
     loaiTaiKhoan: string; tenTaiKhoan: string; bankName: string; accountNumber: string;
     accountHolder: string; branch: string; notes: string; soDuDauKy: number;
-    isActive: boolean; isDefault: boolean;
+    isActive: boolean; isDefault: boolean; laCaNhan: boolean;
   }>): Promise<BankAccount> =>
     authFetch(`/bank-accounts/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   setDefault: (id: number): Promise<BankAccount> =>

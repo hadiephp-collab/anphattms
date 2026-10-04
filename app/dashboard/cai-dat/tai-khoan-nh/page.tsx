@@ -13,54 +13,6 @@ function useToast() {
   return { toast, show };
 }
 
-// ── Account Card ──────────────────────────────────────────────────────────
-function AccountCard({ ba, onEdit, onToggle, onDelete, onSetDefault }: {
-  ba: BankAccount; onEdit: () => void; onToggle: () => void; onDelete: () => void; onSetDefault: () => void;
-}) {
-  const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(Math.round(n));
-  const isTM = ba.loaiTaiKhoan === 'TIEN_MAT';
-  const balance = Number(ba.soDuHienTai ?? 0);
-  return (
-    <div className={`bg-white border rounded-xl p-4 transition-all hover:shadow-md ${!ba.isActive ? 'opacity-60' : ''} ${ba.isDefault ? 'ring-2 ring-blue-400' : ''} border-l-4 ${isTM ? 'border-l-green-400' : 'border-l-blue-400'}`}>
-      <div className="flex items-start justify-between mb-3">
-        <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-lg ${isTM ? 'bg-green-50' : 'bg-blue-50'}`}>
-          {isTM ? '💵' : '🏦'}
-        </div>
-        <div className="flex items-center gap-1">
-          {ba.isDefault && <span className="text-xs bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full">Mặc định</span>}
-          <button onClick={onSetDefault} title="Đặt mặc định" className="text-gray-300 hover:text-yellow-400 text-lg transition-colors">
-            {ba.isDefault ? '★' : '☆'}
-          </button>
-        </div>
-      </div>
-      <p className={`text-xs uppercase tracking-wide mb-0.5 font-semibold ${isTM ? 'text-green-600' : 'text-blue-600'}`}>
-        {isTM ? 'Tiền mặt' : (ba.bankName ?? 'Ngân hàng')}
-      </p>
-      <p className="text-sm font-bold text-gray-800 truncate">{displayName(ba)}</p>
-      {ba.accountNumber && <p className="text-xs text-gray-400 font-mono mt-0.5">{ba.accountNumber}</p>}
-      <div className="mt-3 pt-3 border-t border-gray-100">
-        <p className="text-xs text-gray-400">Số dư hiện tại</p>
-        <p className={`text-lg font-extrabold mt-0.5 ${balance < 0 ? 'text-red-500' : isTM ? 'text-green-600' : 'text-blue-700'}`}>
-          {fmt(balance)}đ
-        </p>
-        {Number(ba.soDuDauKy) > 0 && (
-          <p className="text-xs text-gray-400 mt-0.5">Đầu kỳ: {fmt(Number(ba.soDuDauKy))}đ</p>
-        )}
-      </div>
-      <div className="flex items-center gap-1 mt-3 pt-2 border-t border-gray-100">
-        <span className="text-xs text-gray-400 font-mono flex-1">{ba.code}</span>
-        <button onClick={onEdit} className="text-xs text-blue-600 hover:bg-blue-50 px-2 py-1 rounded">Sửa</button>
-        <button onClick={onToggle} className={`text-xs px-2 py-1 rounded ${ba.isActive ? 'text-gray-500 hover:text-orange-600 hover:bg-orange-50' : 'text-green-600 hover:bg-green-50'}`}>
-          {ba.isActive ? 'Tắt' : 'Bật'}
-        </button>
-        {!ba.isActive && (
-          <button onClick={onDelete} className="text-xs text-red-500 hover:bg-red-50 px-2 py-1 rounded">Xóa</button>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ── Modal Tài khoản ───────────────────────────────────────────────────────
 function AccountModal({ editing, onClose, onSaved }: {
   editing: BankAccount | null; onClose: () => void; onSaved: () => void;
@@ -75,6 +27,7 @@ function AccountModal({ editing, onClose, onSaved }: {
   const [soDuDauKy, setSoDuDauKy] = useState(String(editing?.soDuDauKy ?? 0));
   const [notes, setNotes] = useState(editing?.notes ?? '');
   const [isDefault, setIsDefault] = useState(editing?.isDefault ?? false);
+  const [laCaNhan, setLaCaNhan] = useState(editing?.laCaNhan ?? false);
   const [isActive, setIsActive] = useState(editing?.isActive ?? true);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
@@ -92,6 +45,7 @@ function AccountModal({ editing, onClose, onSaved }: {
         soDuDauKy: parseFloat(soDuDauKy) || 0,
         notes: notes.trim() || undefined,
         isDefault,
+        laCaNhan,
         ...(loai === 'NGAN_HANG' ? {
           bankName: resolvedBank.trim(),
           accountNumber: accountNumber.trim(),
@@ -184,6 +138,10 @@ function AccountModal({ editing, onClose, onSaved }: {
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} className="w-4 h-4 rounded" />
               <span className="text-gray-700 font-medium">Tài khoản mặc định</span>
+            </label>
+            <label className="flex items-center gap-2 text-sm cursor-pointer" title="VD tài khoản riêng của chủ dùng trả NCC nước ngoài — báo cáo quỹ công ty tách riêng">
+              <input type="checkbox" checked={laCaNhan} onChange={(e) => setLaCaNhan(e.target.checked)} className="w-4 h-4 rounded" />
+              <span className="text-gray-700 font-medium">Tài khoản cá nhân</span>
             </label>
             {editing && (
               <label className="flex items-center gap-2 text-sm cursor-pointer">
@@ -370,164 +328,287 @@ export default function TaiKhoanNHPage() {
   const tienMat = active.filter((a) => a.loaiTaiKhoan === 'TIEN_MAT');
   const nganHang = active.filter((a) => a.loaiTaiKhoan === 'NGAN_HANG');
   const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(Math.round(n));
+  const fmtDelta = (ba: BankAccount) => {
+    const delta = Number(ba.soDuHienTai) - Number(ba.soDuDauKy);
+    if (delta === 0) return <span className="text-gray-400">—</span>;
+    return <span className={delta > 0 ? 'text-emerald-600' : 'text-red-500'}>{delta > 0 ? '+' : ''}{fmt(delta)}</span>;
+  };
+
+  const displayedAccounts = showInactive ? accounts : active;
+
+  const thCls = 'px-3 py-2.5 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wide whitespace-nowrap';
+  const tdCls = 'px-3 py-2.5 text-sm text-gray-700 whitespace-nowrap';
 
   return (
-    <div className="p-6 space-y-5 max-w-6xl mx-auto">
+    <div className="flex flex-col h-full bg-[#f5f6fa]">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-100 shrink-0">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Tài Khoản</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Quản lý quỹ tiền mặt &amp; tài khoản ngân hàng</p>
+          <h1 className="text-lg font-bold text-gray-900">Ngân Hàng</h1>
+          <p className="text-xs text-gray-400 mt-0.5">Quản lý quỹ tiền mặt &amp; tài khoản ngân hàng</p>
         </div>
         <div className="flex gap-2">
           <button onClick={() => setShowTransferModal(true)}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm border border-gray-300 bg-white rounded-lg hover:bg-gray-50 font-medium">
-            ⇄ Chuyển khoản nội bộ
+            className="flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-200 bg-white rounded-lg hover:bg-gray-50 font-medium text-gray-700">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+            </svg>
+            Chuyển khoản nội bộ
           </button>
           <button onClick={() => { setEditingAcc(null); setShowModal(true); }}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
-            + Thêm tài khoản
+            className="flex items-center gap-1.5 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Thêm tài khoản
           </button>
         </div>
       </div>
 
-      {/* Total bar */}
-      {stats && (
-        <div className="bg-gradient-to-r from-blue-800 to-blue-600 rounded-xl p-5 flex items-center justify-between text-white">
-          <div>
-            <p className="text-xs text-blue-200 uppercase tracking-wide mb-1">Tổng số dư</p>
-            <p className="text-3xl font-extrabold">{fmt(stats.totalBalance)}đ</p>
-          </div>
-          <div className="flex gap-8 items-center">
-            <div className="text-right">
-              <p className="text-xs text-blue-200 uppercase tracking-wide mb-1">Tiền mặt</p>
-              <p className="text-sm font-bold text-green-300">{fmt(stats.totalTienMat)}đ</p>
-              <p className="text-xs text-blue-300">{tienMat.length} quỹ</p>
-            </div>
-            <div className="w-px h-10 bg-white/20" />
-            <div className="text-right">
-              <p className="text-xs text-blue-200 uppercase tracking-wide mb-1">Ngân hàng</p>
-              <p className="text-sm font-bold text-blue-200">{fmt(stats.totalNganHang)}đ</p>
-              <p className="text-xs text-blue-300">{nganHang.length} tài khoản</p>
-            </div>
-            <div className="w-px h-10 bg-white/20" />
-            <div className="text-right">
-              <p className="text-xs text-blue-200 uppercase tracking-wide mb-1">Đang hoạt động</p>
-              <p className="text-sm font-bold">{stats.active}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {stats && stats.active > 0 && !stats.defaultAccount && (
-        <div className="flex items-center gap-2 text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-sm">
-          ⚠️ Chưa có tài khoản mặc định — click ☆ để đặt
-        </div>
-      )}
-
-      {loading ? (
-        <div className="text-center py-16 text-gray-400">Đang tải...</div>
-      ) : (
-        <>
-          {tienMat.length > 0 && (
+      <div className="flex-1 overflow-auto px-6 py-4 space-y-4">
+        {/* Stats bar */}
+        {stats && (
+          <div className="bg-gradient-to-r from-blue-800 to-blue-600 rounded-xl p-5 flex items-center justify-between text-white">
             <div>
-              <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">💵 Quỹ tiền mặt</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {tienMat.map((ba) => (
-                  <AccountCard key={ba.id} ba={ba}
-                    onEdit={() => { setEditingAcc(ba); setShowModal(true); }}
-                    onToggle={() => handleToggleActive(ba)}
-                    onDelete={() => setConfirmDelete(ba)}
-                    onSetDefault={() => handleSetDefault(ba)} />
-                ))}
+              <p className="text-xs text-blue-200 uppercase tracking-wide mb-1">Tổng số dư</p>
+              <p className="text-3xl font-extrabold">{fmt(stats.totalBalance)}đ</p>
+            </div>
+            <div className="flex gap-8 items-center">
+              <div className="text-right">
+                <p className="text-xs text-blue-200 uppercase tracking-wide mb-1">Tiền mặt</p>
+                <p className="text-sm font-bold text-green-300">{fmt(stats.totalTienMat)}đ</p>
+                <p className="text-xs text-blue-300">{tienMat.length} quỹ</p>
+              </div>
+              <div className="w-px h-10 bg-white/20" />
+              <div className="text-right">
+                <p className="text-xs text-blue-200 uppercase tracking-wide mb-1">Ngân hàng</p>
+                <p className="text-sm font-bold text-blue-200">{fmt(stats.totalNganHang)}đ</p>
+                <p className="text-xs text-blue-300">{nganHang.length} tài khoản</p>
+              </div>
+              <div className="w-px h-10 bg-white/20" />
+              <div className="text-right">
+                <p className="text-xs text-blue-200 uppercase tracking-wide mb-1">Đang hoạt động</p>
+                <p className="text-2xl font-extrabold">{stats.active}</p>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {nganHang.length > 0 && (
-            <div>
-              <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">🏦 Tài khoản ngân hàng</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {nganHang.map((ba) => (
-                  <AccountCard key={ba.id} ba={ba}
-                    onEdit={() => { setEditingAcc(ba); setShowModal(true); }}
-                    onToggle={() => handleToggleActive(ba)}
-                    onDelete={() => setConfirmDelete(ba)}
-                    onSetDefault={() => handleSetDefault(ba)} />
-                ))}
-              </div>
-            </div>
-          )}
+        {stats && stats.active > 0 && !stats.defaultAccount && (
+          <div className="flex items-center gap-2 text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-sm">
+            ⚠️ Chưa có tài khoản mặc định — click ☆ để đặt
+          </div>
+        )}
 
-          {active.length === 0 && (
-            <div className="text-center py-16 text-gray-400 bg-white rounded-xl border-2 border-dashed border-gray-200">
-              <p className="text-4xl mb-2">🏦</p>
+        {/* Main table */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+          {/* Table toolbar */}
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 bg-gray-50/60">
+            <span className="text-xs font-semibold text-gray-500">
+              {accounts.length} tài khoản
+              {inactive.length > 0 && ` (${inactive.length} ngừng hoạt động)`}
+            </span>
+            {inactive.length > 0 && (
+              <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer select-none">
+                <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} className="w-3.5 h-3.5 rounded" />
+                Hiện TK ngừng sử dụng
+              </label>
+            )}
+          </div>
+
+          {loading ? (
+            <div className="py-16 text-center text-gray-400 text-sm">Đang tải...</div>
+          ) : accounts.length === 0 ? (
+            <div className="py-16 text-center text-gray-400">
+              <p className="text-3xl mb-2">🏦</p>
               <p className="font-medium text-gray-500">Chưa có tài khoản nào</p>
               <button onClick={() => { setEditingAcc(null); setShowModal(true); }}
                 className="mt-3 text-blue-600 text-sm hover:underline">+ Thêm tài khoản đầu tiên</button>
             </div>
-          )}
-
-          {inactive.length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-              <button onClick={() => setShowInactive(!showInactive)}
-                className="w-full flex items-center justify-between px-4 py-3 text-sm text-gray-500 hover:bg-gray-50">
-                <span className="flex items-center gap-2">
-                  <span>👁 Tài khoản ngừng sử dụng</span>
-                  <span className="bg-gray-100 text-gray-600 text-xs font-bold px-2 py-0.5 rounded-full">{inactive.length}</span>
-                </span>
-                <span>{showInactive ? '▲' : '▼'}</span>
-              </button>
-              {showInactive && (
-                <div className="px-4 pb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 border-t pt-3">
-                  {inactive.map((ba) => (
-                    <AccountCard key={ba.id} ba={ba}
-                      onEdit={() => { setEditingAcc(ba); setShowModal(true); }}
-                      onToggle={() => handleToggleActive(ba)}
-                      onDelete={() => setConfirmDelete(ba)}
-                      onSetDefault={() => handleSetDefault(ba)} />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {transfers.length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 border-b">
-                <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">⇄ Chuyển khoản nội bộ gần nhất</span>
-                <button onClick={() => setShowTransferModal(true)} className="text-xs text-blue-600 hover:underline">+ Thêm</button>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead className="bg-gray-50 text-gray-500">
-                    <tr>
-                      <th className="px-4 py-2 text-left font-semibold">Ngày</th>
-                      <th className="px-4 py-2 text-left font-semibold">Mã CK</th>
-                      <th className="px-4 py-2 text-left font-semibold">TK Nguồn</th>
-                      <th className="px-4 py-2 text-left font-semibold">TK Đích</th>
-                      <th className="px-4 py-2 text-right font-semibold">Số tiền</th>
-                      <th className="px-4 py-2 text-left font-semibold">Diễn giải</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {transfers.map((t) => (
-                      <tr key={t.id} className="border-t border-gray-100 hover:bg-gray-50">
-                        <td className="px-4 py-2 text-gray-500">{t.ngay ?? t.createdAt.slice(0, 10)}</td>
-                        <td className="px-4 py-2 font-mono text-indigo-600">{t.code}</td>
-                        <td className="px-4 py-2 text-gray-700">{t.fromAccountName}</td>
-                        <td className="px-4 py-2 text-gray-700">{t.toAccountName}</td>
-                        <td className="px-4 py-2 text-right font-bold text-indigo-600">{fmt(Number(t.amount))}đ</td>
-                        <td className="px-4 py-2 text-gray-500">{t.dienGiai ?? '—'}</td>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead className="bg-gray-50 sticky top-0 z-10">
+                  <tr>
+                    <th className={thCls}>Loại</th>
+                    <th className={thCls}>Mã</th>
+                    <th className={thCls}>Tên tài khoản</th>
+                    <th className={thCls}>Ngân hàng</th>
+                    <th className={thCls}>Số tài khoản</th>
+                    <th className={thCls}>Chủ tài khoản</th>
+                    <th className={`${thCls} text-right`}>Dư đầu kỳ</th>
+                    <th className={`${thCls} text-right`}>Chênh lệch</th>
+                    <th className={`${thCls} text-right`}>Số dư hiện tại</th>
+                    <th className={thCls}>Trạng thái</th>
+                    <th className={thCls}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayedAccounts.map((ba) => {
+                    const isTM = ba.loaiTaiKhoan === 'TIEN_MAT';
+                    const balance = Number(ba.soDuHienTai ?? 0);
+                    const isInactive = !ba.isActive;
+                    return (
+                      <tr key={ba.id}
+                        className={`border-t border-gray-100 transition-colors ${isInactive ? 'opacity-50 bg-gray-50/50' : 'hover:bg-blue-50/30'}`}>
+                        {/* Loại */}
+                        <td className={tdCls}>
+                          <div className="flex items-center gap-1.5">
+                            <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${isTM ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                              {isTM ? '💵 TM' : '🏦 NH'}
+                            </span>
+                          </div>
+                        </td>
+                        {/* Mã */}
+                        <td className={tdCls}>
+                          <span className="font-mono text-xs text-gray-500">{ba.code}</span>
+                        </td>
+                        {/* Tên */}
+                        <td className={tdCls}>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-medium text-gray-800">{displayName(ba)}</span>
+                            {ba.isDefault && (
+                              <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-1.5 py-0.5 rounded-full">Mặc định</span>
+                            )}
+                            {ba.laCaNhan && <span className="text-[10px] bg-amber-100 text-amber-700 font-bold px-1.5 py-0.5 rounded-full">Cá nhân</span>}
+                          </div>
+                          {ba.notes && <p className="text-xs text-gray-400 mt-0.5 truncate max-w-[180px]">{ba.notes}</p>}
+                        </td>
+                        {/* Ngân hàng */}
+                        <td className={tdCls}>
+                          {isTM ? <span className="text-gray-400">—</span> : (ba.bankName ?? <span className="text-gray-400">—</span>)}
+                          {ba.branch && <p className="text-xs text-gray-400">{ba.branch}</p>}
+                        </td>
+                        {/* Số TK */}
+                        <td className={tdCls}>
+                          {ba.accountNumber
+                            ? <span className="font-mono text-gray-700 tracking-wide">{ba.accountNumber}</span>
+                            : <span className="text-gray-300">—</span>}
+                        </td>
+                        {/* Chủ TK */}
+                        <td className={tdCls}>
+                          {ba.accountHolder ?? <span className="text-gray-300">—</span>}
+                        </td>
+                        {/* Dư đầu kỳ */}
+                        <td className={`${tdCls} text-right font-mono text-gray-500`}>
+                          {fmt(Number(ba.soDuDauKy))}
+                        </td>
+                        {/* Chênh lệch */}
+                        <td className={`${tdCls} text-right font-mono font-semibold`}>
+                          {fmtDelta(ba)}
+                        </td>
+                        {/* Số dư HT */}
+                        <td className={`${tdCls} text-right`}>
+                          <span className={`font-extrabold font-mono text-base ${balance < 0 ? 'text-red-500' : isTM ? 'text-emerald-600' : 'text-blue-700'}`}>
+                            {fmt(balance)}
+                          </span>
+                        </td>
+                        {/* Trạng thái */}
+                        <td className={tdCls}>
+                          {ba.isActive
+                            ? <span className="text-xs bg-green-100 text-green-700 font-semibold px-2 py-0.5 rounded-full">Hoạt động</span>
+                            : <span className="text-xs bg-gray-100 text-gray-500 font-semibold px-2 py-0.5 rounded-full">Ngừng</span>}
+                        </td>
+                        {/* Hành động */}
+                        <td className={`${tdCls} text-right`}>
+                          <div className="flex items-center justify-end gap-0.5">
+                            <button onClick={() => handleSetDefault(ba)} title={ba.isDefault ? 'Đang mặc định' : 'Đặt mặc định'}
+                              className={`p-1.5 rounded hover:bg-gray-100 transition-colors text-base leading-none ${ba.isDefault ? 'text-yellow-400' : 'text-gray-300 hover:text-yellow-400'}`}>
+                              {ba.isDefault ? '★' : '☆'}
+                            </button>
+                            <button onClick={() => { setEditingAcc(ba); setShowModal(true); }}
+                              title="Chỉnh sửa"
+                              className="p-1.5 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors">
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                            <button onClick={() => handleToggleActive(ba)}
+                              title={ba.isActive ? 'Tắt' : 'Bật'}
+                              className={`p-1.5 rounded transition-colors ${ba.isActive ? 'text-gray-400 hover:text-orange-500 hover:bg-orange-50' : 'text-green-600 hover:bg-green-50'}`}>
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                {ba.isActive
+                                  ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />}
+                              </svg>
+                            </button>
+                            {!ba.isActive && (
+                              <button onClick={() => setConfirmDelete(ba)} title="Xóa"
+                                className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors">
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    );
+                  })}
+                </tbody>
+                {/* Footer: tổng dư theo loại */}
+                {active.length > 1 && (
+                  <tfoot>
+                    <tr className="border-t-2 border-gray-200 bg-gray-50">
+                      <td colSpan={6} className="px-3 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wide">Tổng cộng</td>
+                      <td className="px-3 py-2.5 text-right font-mono text-sm font-bold text-gray-600">
+                        {fmt(active.reduce((s, a) => s + Number(a.soDuDauKy), 0))}
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-mono text-sm font-bold">
+                        {(() => {
+                          const delta = active.reduce((s, a) => s + Number(a.soDuHienTai) - Number(a.soDuDauKy), 0);
+                          if (delta === 0) return <span className="text-gray-400">—</span>;
+                          return <span className={delta > 0 ? 'text-emerald-600' : 'text-red-500'}>{delta > 0 ? '+' : ''}{fmt(delta)}</span>;
+                        })()}
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-mono text-base font-extrabold text-blue-700">
+                        {fmt(active.reduce((s, a) => s + Number(a.soDuHienTai), 0))}
+                      </td>
+                      <td colSpan={2} />
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
             </div>
           )}
-        </>
-      )}
+        </div>
+
+        {/* Chuyển khoản nội bộ gần nhất */}
+        {transfers.length > 0 && (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+              <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Chuyển khoản nội bộ gần nhất</span>
+              <button onClick={() => setShowTransferModal(true)} className="text-xs text-blue-600 hover:underline font-medium">+ Thêm</button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className={thCls}>Ngày</th>
+                    <th className={thCls}>Mã CK</th>
+                    <th className={thCls}>TK nguồn</th>
+                    <th className={thCls}>TK đích</th>
+                    <th className={`${thCls} text-right`}>Số tiền</th>
+                    <th className={thCls}>Diễn giải</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transfers.map((t) => (
+                    <tr key={t.id} className="border-t border-gray-100 hover:bg-gray-50">
+                      <td className={`${tdCls} text-gray-500`}>{t.ngay ?? t.createdAt.slice(0, 10)}</td>
+                      <td className={`${tdCls} font-mono text-indigo-600 font-semibold`}>{t.code}</td>
+                      <td className={tdCls}>{t.fromAccountName}</td>
+                      <td className={tdCls}>{t.toAccountName}</td>
+                      <td className={`${tdCls} text-right font-bold font-mono text-indigo-600`}>{fmt(Number(t.amount))}</td>
+                      <td className={`${tdCls} text-gray-500`}>{t.dienGiai ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Modals */}
       {showModal && (
