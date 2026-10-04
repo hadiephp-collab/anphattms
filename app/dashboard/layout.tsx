@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { isLoggedIn, getUser, clearAuth } from '@/lib/auth';
+import { installSessionGuard, kiemTraPhien } from '@/lib/session-guard';
 
 interface NavChild { href: string; label: string; exact?: boolean; soon?: boolean; hidden?: boolean; }
 interface NavItem {
@@ -98,6 +99,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     if (!isLoggedIn()) { router.push('/login'); return; }
+    // Phiên hết hạn (7 ngày) → về đăng nhập thay vì hiện danh sách trống
+    installSessionGuard();
+    if (!kiemTraPhien()) return;
     setUser(getUser());
   }, [router]);
 

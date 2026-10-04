@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiPost } from '@/lib/api';
 import { saveAuth } from '@/lib/auth';
@@ -12,6 +12,12 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [info, setInfo] = useState('');
+
+  // Bị đưa về đây vì phiên đăng nhập hết hạn (7 ngày)
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).has('het-han')) setInfo('Phiên đăng nhập đã hết hạn — vui lòng đăng nhập lại.');
+  }, []);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -20,9 +26,11 @@ export default function LoginPage() {
     try {
       const data = await apiPost('/auth/login', { username, password });
       saveAuth(data.token, data.user);
-      router.push('/dashboard');
+      // Quay lại trang đang mở trước khi hết hạn — chỉ nhận đường dẫn trong app
+      const next = new URLSearchParams(window.location.search).get('next') ?? '';
+      router.push(/^\/dashboard(\/|\?|$)/.test(next) && !next.startsWith('//') ? next : '/dashboard');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Đăng nhập thất bại');
+      setError(err instanceof TypeError ? 'Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.' : err instanceof Error ? err.message : 'Đăng nhập thất bại');
     } finally {
       setLoading(false);
     }
@@ -104,6 +112,10 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
+
+            {info && !error && (
+              <div className="px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">{info}</div>
+            )}
 
             {/* Error */}
             {error && (
