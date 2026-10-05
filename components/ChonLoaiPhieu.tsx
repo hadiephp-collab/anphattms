@@ -13,7 +13,7 @@ const THU: Loai[] = [
   { ten: 'Thu khác', moTa: 'Lãi ngân hàng, thanh lý tài sản, góp vốn, NCC nước ngoài hoàn tiền…', noi: 'tms', duongDan: '/dashboard/thu-chi/phieu-thu/tao-moi' },
 ];
 const CHI: Loai[] = [
-  { ten: 'Chi NCC trong nước', moTa: 'Trả công ty nhập khẩu / NCC trong nước theo hoá đơn — trừ công nợ phải trả', noi: 'ban_hang', duongDan: '/dashboard/cong-no/phai-tra' },
+  { ten: 'Chi NCC trong nước', moTa: 'Phiếu chi NCC (PCN-) trả công ty nhập khẩu / NCC trong nước — trừ công nợ phải trả', noi: 'ban_hang', duongDan: '/dashboard/cong-no/phieu-chi?tao=1' },
   { ten: 'Hoàn tiền khách trả hàng', moTa: 'Làm qua phiếu trả hàng (duyệt phiếu → hoàn tiền)', noi: 'ban_hang', duongDan: '/dashboard/returns' },
   { ten: 'Chi NCC nước ngoài', moTa: 'Trả tiền hàng / vận chuyển cho đối tác nước ngoài', noi: 'tms', duongDan: '/dashboard/thu-chi/phieu-chi/tao-moi?doiTuong=supplier' },
   { ten: 'Chi lương / chi khác', moTa: 'Lương, văn phòng, chi phí khác', noi: 'tms', duongDan: '/dashboard/thu-chi/phieu-chi/tao-moi' },
