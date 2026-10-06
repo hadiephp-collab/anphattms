@@ -123,7 +123,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     });
   }
 
-  function handleLogout() { clearAuth(); router.push('/login'); }
+  function handleLogout() {
+    try { localStorage.setItem('VUA_DANG_XUAT', '1'); } catch { /**/ }
+    clearAuth();
+    router.push('/login');
+  }
 
   const isActive = (href: string, exact: boolean) =>
     exact ? pathname === href : pathname.startsWith(href);
